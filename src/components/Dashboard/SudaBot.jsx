@@ -48,18 +48,6 @@ export default function SudaBot({ products, logs, businessInfo, onOpenSettings }
     setChatHistory(prev => [...prev, { role: 'user', text: userMessage }]);
     setIsTyping(true);
 
-    if (!apiKey) {
-      // Mock AI response if no API Key provided
-      setTimeout(() => {
-        setIsTyping(false);
-        setChatHistory(prev => [...prev, {
-          role: 'bot',
-          text: `Merhaba! Benimle özgürce sohbet edebilmek ve stoklarınızı yapay zeka ile analiz ettirmek için lütfen Ayarlar ekranından geçerli bir Google Gemini API Anahtarı girin. ✨`
-        }]);
-      }, 1000);
-      return;
-    }
-
     try {
       const context = {
         businessName: businessInfo.businessName,
@@ -123,7 +111,7 @@ export default function SudaBot({ products, logs, businessInfo, onOpenSettings }
               <Bot size={20} />
               <div>
                 <h4>SudaBot AI</h4>
-                <span>{apiKey ? 'Aktif Yapay Zeka' : 'Stok Yardımcısı'}</span>
+                <span>{apiKey ? 'Özel API Key Aktif' : 'SudaBot AI Hazır'}</span>
               </div>
             </div>
             <button className="chat-close-btn" onClick={() => setIsOpen(false)} id="btn-close-sudabot">
@@ -139,11 +127,8 @@ export default function SudaBot({ products, logs, businessInfo, onOpenSettings }
               <div className="message-text">
                 Merhaba! Ben <strong>SudaBot</strong>. {businessInfo.businessName} için stoklarınızı analiz edebilir, tarif/reçete üretebilir veya kritik durumları inceleyebilirim.
                 {!apiKey && (
-                  <div className="apiKey-warning-box">
-                    <p><AlertTriangle size={14} style={{ display: 'inline', marginRight: 4 }} /> Serbestçe sohbet etmek ve yapay zekayı aktifleştirmek için API anahtarı ekleyin.</p>
-                    <button className="btn-setup-key" onClick={() => { setIsOpen(false); onOpenSettings(); }} id="btn-chat-setup-key">
-                      <Key size={12} /> API Key Tanımla
-                    </button>
+                  <div className="apiKey-info-box" style={{ marginTop: 8, fontSize: '0.75rem', color: '#6D28D9', borderTop: '1px dashed rgba(124, 58, 237, 0.2)', paddingTop: 8, lineHeight: '1.4' }}>
+                    💡 Varsayılan SudaBot AI aktif! Kendi API anahtarınızı tanımlamak isterseniz Ayarlar panelini kullanabilirsiniz.
                   </div>
                 )}
               </div>
@@ -202,7 +187,7 @@ export default function SudaBot({ products, logs, businessInfo, onOpenSettings }
           <form onSubmit={handleSendMessage} className="chat-input-form" id="sudabot-input-form">
             <input
               type="text"
-              placeholder={apiKey ? "Bana bir soru sor..." : "API Key tanımlayın..."}
+              placeholder="SudaBot'a sor..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               id="sudabot-text-input"
