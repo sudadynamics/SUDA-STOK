@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Coffee, Cake, ShoppingBag, Store, ArrowRight, User, Briefcase, DollarSign, Sparkles } from 'lucide-react';
+import { Coffee, Cake, ShoppingBag, Store, ArrowRight, User, Briefcase, DollarSign, HelpCircle, Check } from 'lucide-react';
+import { loadDemoData } from '../../utils/demoData';
 import './Onboarding.css';
 
 const BUSINESS_TYPES = [
@@ -8,7 +9,7 @@ const BUSINESS_TYPES = [
     title: 'Pastane',
     desc: 'Pasta, kurabiye, sütlü tatlılar ve reçete bazlı hammadde takibi.',
     icon: Cake,
-    color: '#7C3AED', // Purple
+    color: '#7C3AED',
     lightColor: '#F5F3FF',
     glow: 'rgba(124, 58, 237, 0.2)'
   },
@@ -17,7 +18,7 @@ const BUSINESS_TYPES = [
     title: 'Cafe',
     desc: 'Sıcak/soğuk içecekler, atıştırmalıklar ve masa sipariş entegrasyonu.',
     icon: Coffee,
-    color: '#F98D2E', // Orange
+    color: '#F98D2E',
     lightColor: '#FFF7ED',
     glow: 'rgba(249, 141, 46, 0.2)'
   },
@@ -26,7 +27,7 @@ const BUSINESS_TYPES = [
     title: 'Fırın',
     desc: 'Sıcak unlu mamuller, ekmek çeşitleri, un ve maya çuval takipleri.',
     icon: Store,
-    color: '#FBBF24', // Yellow/Gold
+    color: '#FBBF24',
     lightColor: '#FEFCE8',
     glow: 'rgba(251, 191, 36, 0.2)'
   },
@@ -35,7 +36,7 @@ const BUSINESS_TYPES = [
     title: 'Market',
     desc: 'Hızlı tüketim malları, barkodlu ürünler ve raf-depo adet yönetimi.',
     icon: ShoppingBag,
-    color: '#1EAF8A', // Teal
+    color: '#1EAF8A',
     lightColor: '#ECFDF5',
     glow: 'rgba(30, 175, 138, 0.2)'
   }
@@ -47,6 +48,7 @@ export default function Onboarding({ onComplete }) {
   const [ownerName, setOwnerName] = useState('');
   const [currency, setCurrency] = useState('₺');
   const [businessType, setBusinessType] = useState('');
+  const [setupMode, setSetupMode] = useState('demo'); // 'demo' | 'empty'
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleNextStep = (e) => {
@@ -56,17 +58,26 @@ export default function Onboarding({ onComplete }) {
     }
   };
 
-  const handleSelectType = async (typeId) => {
+  const handleSelectType = (typeId) => {
     setBusinessType(typeId);
+    setStep(3); // Go to step 3: Choose database initialization mode
+  };
+
+  const handleCompleteSetup = async () => {
     setIsSubmitting(true);
-    
-    // Smooth delay for transitions and robot animation
+
+    if (setupMode === 'demo') {
+      // Load demo data presets in database
+      await loadDemoData(businessType);
+    }
+
+    // Delay slightly for smooth transitions
     setTimeout(() => {
       onComplete({
         businessName,
         ownerName,
         currency,
-        businessType: typeId,
+        businessType,
         createdAt: new Date().toISOString()
       });
     }, 1500);
@@ -74,14 +85,14 @@ export default function Onboarding({ onComplete }) {
 
   return (
     <div className="onboarding-container animate-fade-in" id="onboarding-setup">
-      {/* Decorative Floating Shapes */}
       <div className="deco-dot dot-1"></div>
       <div className="deco-dot dot-2"></div>
       <div className="deco-dot dot-3"></div>
       <div className="deco-plane">✈️</div>
 
       <div className="onboarding-card animate-pop-in">
-        {/* Brand Header */}
+        
+        {/* Brand Logo Header */}
         <div className="brand-logo-container">
           <div className="brand-suda">
             <span>S</span>
@@ -92,23 +103,17 @@ export default function Onboarding({ onComplete }) {
           <div className="brand-dynamics">&lt; DYNAMICS &gt;</div>
         </div>
 
-        {/* Mascot Robot Interaction */}
+        {/* Mascot Robot dialog box */}
         <div className="robot-mascot-container">
           <div className={`robot-avatar ${isSubmitting ? 'robot-celebrate' : 'robot-idle'}`}>
             <svg viewBox="0 0 100 100" className="robot-svg">
-              {/* Ears / Antennas */}
               <circle cx="50" cy="12" r="5" fill="#1EAF8A" className="antenna-light" />
               <line x1="50" y1="12" x2="50" y2="25" stroke="#7C3AED" strokeWidth="4" />
-              {/* Body / Head */}
               <rect x="25" y="25" width="50" height="50" rx="20" fill="#7C3AED" />
-              {/* Face screen */}
               <rect x="33" y="33" width="34" height="26" rx="10" fill="#0B1B3D" />
-              {/* Smiling Eyes */}
               <path d="M 40 43 Q 43 40 46 43" stroke="#1EAF8A" strokeWidth="3" fill="none" strokeLinecap="round" />
               <path d="M 54 43 Q 57 40 60 43" stroke="#1EAF8A" strokeWidth="3" fill="none" strokeLinecap="round" />
-              {/* Smile Mouth */}
               <path d="M 44 51 Q 50 56 56 51" stroke="#FFFFFF" strokeWidth="3" fill="none" strokeLinecap="round" />
-              {/* Waving Hand (animated in CSS) */}
               <g className="robot-hand">
                 <path d="M 75 45 Q 85 35 90 40" stroke="#7C3AED" strokeWidth="6" strokeLinecap="round" fill="none" />
                 <circle cx="90" cy="40" r="4" fill="#F98D2E" />
@@ -117,26 +122,31 @@ export default function Onboarding({ onComplete }) {
           </div>
           <div className="speech-bubble">
             {step === 1 && (
-              <p>Merhaba! Ben <strong>SudaBot</strong>. Harika bir stok takip sistemi kurmak için can atıyorum! Öncelikle seni ve işletmeni tanıyabilir miyim?</p>
+              <p>Merhaba! Ben <strong>SudaBot</strong>. Harika bir stok takip sistemi kurmak için sabırsızlanıyorum! Öncelikle seni ve işletmeni tanıyabilir miyim?</p>
             )}
-            {step === 2 && !isSubmitting && (
+            {step === 2 && (
               <p>Müthiş! Şimdi işletmenin türünü seçer misin? Sistemimizi senin sektörüne göre özelleştireceğim! ✨</p>
             )}
+            {step === 3 && !isSubmitting && (
+              <p>Harika seçim! Şimdi envanterini nasıl başlatmak istersin? İstersen senin için **örnek ürünler ve reçeteler** yükleyebilirim. Böylece sistemi hemen görebilirsin! 🚀</p>
+            )}
             {isSubmitting && (
-              <p>Harika seçim! Şimdi veritabanını kuruyorum ve arayüzü senin için hazırlıyorum... Lütfen bekle! 🎉</p>
+              <p>Harika! Şimdi veritabanını kuruyorum, cari hesapları bağlıyorum ve envanterini hazırlıyorum... Lütfen bekleyin! 🎉</p>
             )}
           </div>
         </div>
 
-        {/* Step Indicator */}
+        {/* Step dots */}
         <div className="step-indicator-bar">
           <div className={`step-dot ${step >= 1 ? 'active' : ''}`}>1</div>
           <div className="step-line-connector"></div>
           <div className={`step-dot ${step >= 2 ? 'active' : ''}`}>2</div>
+          <div className="step-line-connector"></div>
+          <div className={`step-dot ${step >= 3 ? 'active' : ''}`}>3</div>
         </div>
 
-        {step === 1 ? (
-          /* Step 1: Form Details */
+        {step === 1 && (
+          /* Step 1: Form details */
           <form onSubmit={handleNextStep} className="onboarding-form animate-fade-in-up" id="form-business-info">
             <h1 className="step-title">İşletmenizi Tanımlayın</h1>
             <p className="step-subtitle">Stok takip panelinizi kişiselleştirmek için temel bilgileri girin.</p>
@@ -197,11 +207,13 @@ export default function Onboarding({ onComplete }) {
               Devam Et <ArrowRight size={18} />
             </button>
           </form>
-        ) : (
-          /* Step 2: Business Type Select */
+        )}
+
+        {step === 2 && (
+          /* Step 2: Choose Business Type */
           <div className="business-select-area animate-fade-in-up" id="business-type-selector">
             <h1 className="step-title">İşletme Türünü Seçin</h1>
-            <p className="step-subtitle">İşletmenizin türü, kullanacağınız stok ve reçete araçlarını belirler.</p>
+            <p className="step-subtitle">Sektörünüz, kullanacağınız stok ve reçete araçlarını belirler.</p>
 
             <div className="business-grid">
               {BUSINESS_TYPES.map((type) => {
@@ -210,13 +222,12 @@ export default function Onboarding({ onComplete }) {
                   <button
                     key={type.id}
                     id={`btn-type-${type.id}`}
-                    className={`business-type-card glow-card ${isSubmitting && businessType === type.id ? 'selected' : ''}`}
-                    onClick={() => !isSubmitting && handleSelectType(type.id)}
+                    className="business-type-card glow-card"
+                    onClick={() => handleSelectType(type.id)}
                     style={{
                       '--card-glow-color': type.glow,
                       '--card-accent-color': type.color
                     }}
-                    disabled={isSubmitting}
                   >
                     <div className="card-icon-wrapper" style={{ backgroundColor: type.lightColor, color: type.color }}>
                       <IconComponent size={28} />
@@ -225,22 +236,79 @@ export default function Onboarding({ onComplete }) {
                       <h3>{type.title}</h3>
                       <p>{type.desc}</p>
                     </div>
-                    <div className="card-select-indicator"></div>
                   </button>
                 );
               })}
             </div>
             
-            <button
-              onClick={() => !isSubmitting && setStep(1)}
-              className="btn-back"
+            <button onClick={() => setStep(1)} className="btn-back" id="btn-back-step">
+              Geri Dön
+            </button>
+          </div>
+        )}
+
+        {step === 3 && (
+          /* Step 3: Database Initial Data Mode (Demo vs Empty) */
+          <div className="setup-mode-area animate-fade-in-up" id="database-setup-mode-selector">
+            <h1 className="step-title">Başlangıç Kurulum Modu</h1>
+            <p className="step-subtitle">Sistemin nasıl doldurulacağını seçin.</p>
+
+            <div className="setup-mode-choices">
+              {/* Option A: Demo Mode */}
+              <div 
+                className={`setup-mode-option ${setupMode === 'demo' ? 'active' : ''}`}
+                onClick={() => setSetupMode('demo')}
+                id="btn-mode-demo"
+              >
+                <div className="option-indicator">
+                  {setupMode === 'demo' && <Check size={16} />}
+                </div>
+                <div className="option-info">
+                  <h4>Hazır Demo Verilerle Başla (Tavsiye Edilen)</h4>
+                  <p>
+                    Seçtiğiniz sektöre uygun hazır ürünler, örnek stok seviyeleri, reçeteler ve toptancı cari hesapları anında yüklenir. Sistemi hemen denemek için idealdir.
+                  </p>
+                </div>
+              </div>
+
+              {/* Option B: Empty Mode */}
+              <div 
+                className={`setup-mode-option ${setupMode === 'empty' ? 'active' : ''}`}
+                onClick={() => setSetupMode('empty')}
+                id="btn-mode-empty"
+              >
+                <div className="option-indicator">
+                  {setupMode === 'empty' && <Check size={16} />}
+                </div>
+                <div className="option-info">
+                  <h4>Boş Veritabanı ile Başla</h4>
+                  <p>
+                    Sıfır, temiz bir envanter oluşturur. Kendi ürünlerinizi, kategorilerinizi ve fiyatlarınızı baştan girmek istiyorsanız bu seçeneği kullanın.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              className="btn-primary" 
+              onClick={handleCompleteSetup}
               disabled={isSubmitting}
-              id="btn-back-step"
+              id="btn-finish-setup"
+            >
+              {isSubmitting ? 'Kuruluyor...' : 'Sistemi Kur ve Başlat'}
+            </button>
+
+            <button 
+              onClick={() => setStep(2)} 
+              className="btn-back" 
+              disabled={isSubmitting}
+              id="btn-back-step-3"
             >
               Geri Dön
             </button>
           </div>
         )}
+
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Minus, Edit, Trash2, X, PlusCircle, Filter } from 'lucide-react';
+import { Search, Plus, Minus, Edit, Trash2, X, Filter } from 'lucide-react';
 import './StockList.css';
 
 const UNITS = ['Adet', 'g', 'kg', 'L', 'ml', 'Paket', 'Çuval', 'Kutu'];
@@ -80,6 +80,32 @@ export default function StockList({ products, currency, onAddProduct, onUpdatePr
     closeDrawer();
   };
 
+  // Helper for text highlighting in search results
+  const highlightText = (text, search) => {
+    if (!search.trim()) return text;
+    const parts = text.split(new RegExp(`(${search})`, 'gi'));
+    return (
+      <span>
+        {parts.map((part, i) => 
+          part.toLowerCase() === search.toLowerCase() 
+            ? <mark key={i} className="search-highlight">{part}</mark> 
+            : part
+        )}
+      </span>
+    );
+  };
+
+  // Category specific CSS class names
+  const getCategoryClass = (categoryName) => {
+    const cat = categoryName.toLowerCase();
+    if (cat.includes('un') || cat.includes('maya')) return 'cat-un-maya';
+    if (cat.includes('süt') || cat.includes('şarküteri') || cat.includes('peynir')) return 'cat-sut';
+    if (cat.includes('kahve') || cat.includes('içecek') || cat.includes('su')) return 'cat-icecek';
+    if (cat.includes('meyve') || cat.includes('sebze') || cat.includes('çilek')) return 'cat-meyve';
+    if (cat.includes('ambalaj') || cat.includes('paket') || cat.includes('kutu')) return 'cat-ambalaj';
+    return 'cat-default';
+  };
+
   // Get distinct categories present in active products
   const activeCategories = Array.from(new Set([
     ...DEFAULT_CATEGORIES,
@@ -134,7 +160,7 @@ export default function StockList({ products, currency, onAddProduct, onUpdatePr
       <div className="table-responsive-wrapper">
         {filteredProducts.length === 0 ? (
           <div className="no-products-found animate-pop-in">
-            <p>Aramanıza veya filtrenize uygun ürün bulunamadı.</p>
+            <p>Envanterde aramanıza veya filtrenize uygun ürün bulunamadı.</p>
             {products.length === 0 && (
               <button className="btn-primary" style={{ width: 'auto', marginTop: 12 }} onClick={openAddDrawer} id="btn-add-first-product">
                 İlk Ürünü Hemen Ekle
@@ -161,27 +187,33 @@ export default function StockList({ products, currency, onAddProduct, onUpdatePr
                 
                 return (
                   <tr key={product.id} className={isCritical ? 'row-warning' : ''} id={`product-row-${product.id}`}>
-                    <td className="product-name-cell">
-                      <strong>{product.name}</strong>
+                    <td data-label="Ürün Adı" className="product-name-cell">
+                      <strong className="prod-title">{highlightText(product.name, searchTerm)}</strong>
                       {isCritical && (
                         <span className={`badge ${isEmpty ? 'badge-danger' : 'badge-warning'}`}>
                           {isEmpty ? 'Tükendi' : 'Kritik Stok'}
                         </span>
                       )}
                     </td>
-                    <td><span className="badge badge-purple">{product.category}</span></td>
-                    <td><strong>{product.price.toFixed(2)} {currency}</strong></td>
-                    <td className="stock-amount-cell">
+                    <td data-label="Kategori">
+                      <span className={`badge ${getCategoryClass(product.category)}`}>
+                        {highlightText(product.category, searchTerm)}
+                      </span>
+                    </td>
+                    <td data-label="Fiyat">
+                      <strong>{product.price.toFixed(2)} {currency}</strong>
+                    </td>
+                    <td data-label="Mevcut Stok" className="stock-amount-cell">
                       <span className={`stock-number ${isCritical ? 'text-warn' : 'text-normal'}`}>
                         {product.stockAmount}
                       </span>{' '}
                       <span className="stock-unit">{product.unit}</span>
                     </td>
-                    <td>{product.criticalLevel} {product.unit}</td>
+                    <td data-label="Kritik Seviye">{product.criticalLevel} {product.unit}</td>
                     
                     {/* Quick Adjustments */}
-                    <td>
-                      <div className="quick-adjust-group">
+                    <td data-label="Hızlı Stok Ayarı" className="text-center">
+                      <div className="quick-adjust-group" style={{ display: 'inline-flex' }}>
                         <button
                           className="btn-quick-minus"
                           onClick={() => onQuickAdjust(product.id, -1)}
@@ -203,8 +235,8 @@ export default function StockList({ products, currency, onAddProduct, onUpdatePr
                     </td>
 
                     {/* Actions */}
-                    <td className="text-right">
-                      <div className="actions-group">
+                    <td data-label="İşlemler" className="text-right">
+                      <div className="actions-group" style={{ display: 'inline-flex' }}>
                         <button 
                           className="btn-edit" 
                           onClick={() => openEditDrawer(product)}

@@ -406,3 +406,68 @@
 .business-type-card:hover .card-select-indicator {
   background-color: var(--card-accent-color);
 }
+
+/* Database Setup Mode Styles */
+.setup-mode-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.setup-mode-option {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background-color: var(--color-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: var(--transition-bounce);
+  align-items: flex-start;
+}
+
+.setup-mode-option:hover {
+  border-color: var(--color-purple);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.05);
+}
+
+.setup-mode-option.active {
+  border-color: var(--color-purple);
+  background-color: #FFFFFF;
+  box-shadow: var(--shadow-sm);
+}
+
+.option-indicator {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-round);
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: var(--transition-fast);
+}
+
+.setup-mode-option.active .option-indicator {
+  border-color: var(--color-purple);
+  background-color: var(--color-purple);
+  color: #FFFFFF;
+}
+
+.option-info h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-navy);
+  margin-bottom: 4px;
+}
+
+.option-info p {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+

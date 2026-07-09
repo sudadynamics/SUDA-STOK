@@ -395,3 +395,117 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
 }
+
+/* Category Badge Colors */
+.badge.cat-un-maya {
+  background-color: #FEF3C7;
+  color: #92400E;
+  border: 1px solid rgba(146, 64, 14, 0.1);
+}
+
+.badge.cat-sut {
+  background-color: #E0F2FE;
+  color: #075985;
+  border: 1px solid rgba(7, 89, 133, 0.1);
+}
+
+.badge.cat-icecek {
+  background-color: #FFF7ED;
+  color: #C2410C;
+  border: 1px solid rgba(194, 65, 12, 0.1);
+}
+
+.badge.cat-meyve {
+  background-color: #DCFCE7;
+  color: #15803D;
+  border: 1px solid rgba(21, 128, 61, 0.1);
+}
+
+.badge.cat-ambalaj {
+  background-color: #F3F4F6;
+  color: #374151;
+  border: 1px solid rgba(55, 65, 81, 0.15);
+}
+
+.badge.cat-default {
+  background-color: #F5F3FF;
+  color: #6D28D9;
+  border: 1px solid rgba(109, 40, 217, 0.1);
+}
+
+/* Search Highlights */
+mark.search-highlight {
+  background-color: #FDE047;
+  color: #0B1B3D;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+/* Mobile Responsive Table to Cards */
+@media (max-width: 768px) {
+  .table-responsive-wrapper {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .stock-table, 
+  .stock-table tbody, 
+  .stock-table tr, 
+  .stock-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .stock-table thead {
+    display: none; /* Hide header */
+  }
+
+  .stock-table tr {
+    background-color: #FFFFFF;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-fast);
+  }
+
+  .stock-table tr:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .stock-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--color-border);
+    text-align: right;
+  }
+
+  .stock-table td:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-top: 6px;
+  }
+
+  .stock-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--color-navy-light);
+    float: left;
+    text-align: left;
+    font-size: 0.85rem;
+  }
+
+  /* Adjust inline alignment for mobile */
+  .stock-table td .quick-adjust-group,
+  .stock-table td .actions-group {
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
