@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   Boxes, Layers, Settings, LogOut, Download, Upload, Trash2, 
   User, Briefcase, DollarSign, Key, Bell, RefreshCw, Sparkles, Bot, 
-  Truck, Printer, Receipt 
+  Truck, Printer, Receipt, ShoppingCart, AlertTriangle 
 } from 'lucide-react';
 import StockList from './StockList';
 import RecipeManager from './RecipeManager';
 import StockCharts from './StockCharts';
 import SupplierManager from './SupplierManager';
+import PosTerminal from './PosTerminal';
 import SudaBot from './SudaBot';
 import { 
   getAllProducts, addProduct, updateProduct, deleteProduct, 
@@ -106,6 +107,24 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
     await loadData();
   };
 
+  // POS Sales item reduction helper
+  const handleSellProduct = async (id, qty) => {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    const newAmount = Math.max(0, product.stockAmount - qty);
+    await updateProduct({ ...product, stockAmount: newAmount });
+  };
+
+  // Zayiat / Fire Callback helper
+  const handleReportWaste = async (product, qty, reason) => {
+    const newAmount = Math.max(0, product.stockAmount - qty);
+    await updateProduct({ ...product, stockAmount: newAmount });
+    
+    const lossCost = qty * product.price;
+    await addLog('reduce', `Zayiat/Fire: ${qty} ${product.unit} ${product.name}`, `Neden: ${reason}, Zarar: -${lossCost.toFixed(2)} ${businessInfo.currency}`);
+    await loadData();
+  };
+
   // Recipe CRUD actions
   const handleAddRecipe = async (recipe) => {
     await addRecipe(recipe);
@@ -160,7 +179,7 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
     const updatedProduct = {
       ...product,
       stockAmount: product.stockAmount + qty,
-      price: unitPrice // Optional: update current cost price
+      price: unitPrice
     };
     await updateProduct(updatedProduct);
 
@@ -338,6 +357,17 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
   const totalDebt = suppliers.reduce((acc, s) => acc + s.balance, 0);
   const criticalCount = products.filter(p => p.stockAmount <= p.criticalLevel).length;
 
+  // Calculate Cumulative Waste Costs dynamically from logs
+  const totalWasteLoss = logs.reduce((acc, log) => {
+    if (log.message && log.message.includes('Zayiat/Fire:')) {
+      const match = log.details ? log.details.match(/Zarar:\s*-\s*([\d.]+)/) : null;
+      if (match && match[1]) {
+        return acc + parseFloat(match[1]);
+      }
+    }
+    return acc;
+  }, 0);
+
   const getBusinessTypeLabel = (type) => {
     const labels = { pastane: '🧁 Pastane', cafe: '☕ Cafe', firin: '🥖 Fırın', market: '🛒 Market' };
     return labels[type] || '💼 Genel';
@@ -371,6 +401,15 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
           >
             <Boxes size={20} />
             <span>Stok Listesi</span>
+          </button>
+
+          <button 
+            className={`nav-item ${activeTab === 'pos' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pos')}
+            id="tab-btn-pos"
+          >
+            <ShoppingCart size={20} />
+            <span>Hızlı Satış (POS)</span>
           </button>
           
           {/* Render recipes tab only for recipes-based business types */}
@@ -456,12 +495,12 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
           </div>
         </header>
 
-        {/* Dynamic Analytics Summary Grid */}
-        <section className="analytics-grid">
+        {/* Dynamic Analytics Summary Grid with 4 Metrics */}
+        <section className="analytics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
           <div className="analytic-card glow-card border-purple">
             <div className="card-desc">Toplam Ürün Çeşidi</div>
             <div className="card-value text-purple">{products.length}</div>
-            <span className="badge badge-purple">Aktif Ürünler</span>
+            <span className="badge badge-purple">Aktif Envanter</span>
           </div>
 
           <div className="analytic-card glow-card border-orange">
@@ -477,6 +516,12 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
             <div className="card-value text-teal">{totalStockValue.toFixed(2)} {businessInfo.currency}</div>
             <span className="badge badge-success">Mevcut Varlık</span>
           </div>
+
+          <div className="analytic-card glow-card border-red" style={{ borderColor: 'rgba(239, 68, 68, 0.4)' }}>
+            <div className="card-desc">Toplam Fire/Zayiat Kaybı</div>
+            <div className="card-value text-red" style={{ color: 'var(--color-red)' }}>{totalWasteLoss.toFixed(2)} {businessInfo.currency}</div>
+            <span className="badge badge-danger" style={{ backgroundColor: 'var(--color-red-light)', color: 'var(--color-red)' }}>Net Zarar Bilgisi</span>
+          </div>
         </section>
 
         {/* Dynamic Screen Area */}
@@ -488,13 +533,29 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
               
               <StockList
                 products={products}
+                suppliers={suppliers}
                 currency={businessInfo.currency}
+                businessInfo={businessInfo}
                 onAddProduct={handleAddProduct}
                 onUpdateProduct={handleUpdateProduct}
                 onDeleteProduct={handleDeleteProduct}
                 onQuickAdjust={handleQuickAdjust}
+                onReportWaste={handleReportWaste}
               />
             </>
+          )}
+
+          {activeTab === 'pos' && (
+            <PosTerminal
+              products={products}
+              suppliers={suppliers}
+              currency={businessInfo.currency}
+              onSellProduct={handleSellProduct}
+              onAddLog={async (type, msg, details) => {
+                await addLog(type, msg, details);
+                await loadData();
+              }}
+            />
           )}
 
           {activeTab === 'recipes' && (

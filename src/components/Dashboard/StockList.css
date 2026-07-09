@@ -509,3 +509,37 @@ mark.search-highlight {
   }
 }
 
+/* Fire / Zayiat Report Trigger */
+.btn-report-waste-trigger {
+  padding: 12px 20px;
+  background-color: var(--color-orange-light);
+  color: var(--color-orange);
+  border: 1.5px solid rgba(249, 141, 46, 0.2);
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition-bounce);
+}
+
+.btn-report-waste-trigger:hover {
+  background-color: var(--color-orange);
+  color: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(249, 141, 46, 0.2);
+}
+
+/* WhatsApp Icon Button Effects */
+.btn-whatsapp-order-icon:hover {
+  background-color: #1EAF8A !important;
+  transform: scale(1.1);
+}
+
+.btn-whatsapp-order-icon:hover svg {
+  fill: #FFFFFF !important;
+}
+
+

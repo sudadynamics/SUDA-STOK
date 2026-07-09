@@ -1,15 +1,32 @@
 import React, { useState } from 'react';
-import { Search, Plus, Minus, Edit, Trash2, X, Filter } from 'lucide-react';
+import { Search, Plus, Minus, Edit, Trash2, X, Filter, AlertTriangle, MessageCircle } from 'lucide-react';
 import './StockList.css';
 
 const UNITS = ['Adet', 'g', 'kg', 'L', 'ml', 'Paket', 'Çuval', 'Kutu'];
 const DEFAULT_CATEGORIES = ['Hammaddeler', 'Süt & Şarküteri', 'Un & Maya', 'Kahve & İçecek', 'Meyve & Sebze', 'Ambalaj & Paket'];
+const WASTE_REASONS = ['Bozulma', 'Dökülme/Kayıp', 'Son Tüketim Tarihi Geçti', 'Hasarlı Teslimat'];
 
-export default function StockList({ products, currency, onAddProduct, onUpdateProduct, onDeleteProduct, onQuickAdjust }) {
+export default function StockList({ 
+  products, 
+  suppliers, 
+  currency, 
+  businessInfo,
+  onAddProduct, 
+  onUpdateProduct, 
+  onDeleteProduct, 
+  onQuickAdjust,
+  onReportWaste 
+}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  
+  // Zayiat modal states
+  const [isWasteModalOpen, setIsWasteModalOpen] = useState(false);
+  const [wasteProductId, setWasteProductId] = useState('');
+  const [wasteQty, setWasteQty] = useState('');
+  const [wasteReason, setWasteReason] = useState(WASTE_REASONS[0]);
 
   // Form states
   const [name, setName] = useState('');
@@ -120,6 +137,42 @@ export default function StockList({ products, currency, onAddProduct, onUpdatePr
     return matchesSearch && matchesCategory;
   });
 
+  // Handle WhatsApp sipariş taslağı
+  const handleWhatsAppOrder = (product) => {
+    const supplier = suppliers[0] || { name: 'Tedarikçi', phone: '', company: 'Tedarikçi Firmamız' };
+    const phone = supplier.phone ? supplier.phone.replace(/\s+/g, '') : '';
+    const message = `Merhaba ${supplier.company || supplier.name},\n\n${businessInfo.businessName} olarak kritik seviyenin altına düşen şu envanter kalemimiz için sipariş oluşturmak istiyoruz:\n\n- ${product.name} (Gerekli Birim Fiyat: ${product.price.toFixed(2)} ${currency})\n\nDesteklerinizi rica ederiz, iyi çalışmalar.`;
+    
+    const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
+  // Handle Zayiat/Fire Submission
+  const handleWasteSubmit = (e) => {
+    e.preventDefault();
+    const product = products.find(p => p.id === parseInt(wasteProductId));
+    const qty = parseFloat(wasteQty);
+    
+    if (!product || !qty || qty <= 0) return;
+
+    if (qty > product.stockAmount) {
+      alert('Zayiat miktarı mevcut stok miktarından fazla olamaz!');
+      return;
+    }
+
+    onReportWaste(product, qty, wasteReason);
+    setIsWasteModalOpen(false);
+    setWasteProductId('');
+    setWasteQty('');
+    setWasteReason(WASTE_REASONS[0]);
+  };
+
+  const openWasteModal = (productId = '') => {
+    setWasteProductId(productId);
+    setWasteQty('');
+    setIsWasteModalOpen(true);
+  };
+
   return (
     <div className="stock-list-container animate-fade-in" id="stock-list-section">
       {/* Search and Filters bar */}
@@ -150,6 +203,10 @@ export default function StockList({ products, currency, onAddProduct, onUpdatePr
             </select>
           </div>
 
+          <button className="btn-report-waste-trigger" onClick={() => openWasteModal()} id="btn-open-waste-modal">
+            <AlertTriangle size={16} /> Fire Bildir
+          </button>
+
           <button className="btn-add-product" onClick={openAddDrawer} id="btn-open-add-drawer">
             <Plus size={18} /> Yeni Ürün Ekle
           </button>
@@ -175,7 +232,7 @@ export default function StockList({ products, currency, onAddProduct, onUpdatePr
                 <th>Kategori</th>
                 <th>Fiyat</th>
                 <th>Mevcut Stok</th>
-                <th>Kritik Seviye</th>
+                <th>Kritik Limit</th>
                 <th className="text-center">Hızlı Stok Ayarı</th>
                 <th className="text-right">İşlemler</th>
               </tr>
@@ -209,7 +266,22 @@ export default function StockList({ products, currency, onAddProduct, onUpdatePr
                       </span>{' '}
                       <span className="stock-unit">{product.unit}</span>
                     </td>
-                    <td data-label="Kritik Seviye">{product.criticalLevel} {product.unit}</td>
+                    <td data-label="Kritik Limit" style={{ verticalAlign: 'middle' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span>{product.criticalLevel} {product.unit}</span>
+                        {isCritical && (
+                          <button
+                            className="btn-whatsapp-order-icon"
+                            onClick={() => handleWhatsAppOrder(product)}
+                            title="Tedarikçiye WhatsApp Sipariş Taslağı Gönder"
+                            style={waBtnStyle}
+                            id={`btn-wa-order-${product.id}`}
+                          >
+                            <MessageCircle size={11} fill="#1EAF8A" stroke="none" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     
                     {/* Quick Adjustments */}
                     <td data-label="Hızlı Stok Ayarı" className="text-center">
@@ -237,6 +309,15 @@ export default function StockList({ products, currency, onAddProduct, onUpdatePr
                     {/* Actions */}
                     <td data-label="İşlemler" className="text-right">
                       <div className="actions-group" style={{ display: 'inline-flex' }}>
+                        <button
+                          className="btn-fire-report"
+                          onClick={() => openWasteModal(product.id.toString())}
+                          title="Fire Bildir"
+                          style={{ color: '#F98D2E', padding: 6, display: 'flex', alignItems: 'center' }}
+                          id={`btn-fire-action-${product.id}`}
+                        >
+                          <AlertTriangle size={16} />
+                        </button>
                         <button 
                           className="btn-edit" 
                           onClick={() => openEditDrawer(product)}
@@ -386,6 +467,87 @@ export default function StockList({ products, currency, onAddProduct, onUpdatePr
           </div>
         </div>
       )}
+
+      {/* Zayiat/Fire Bildirme Modalı */}
+      {isWasteModalOpen && (
+        <div className="drawer-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="drawer-panel animate-pop-in" style={{ height: 'auto', maxHeight: '90vh', borderRadius: '12px', maxWidth: '400px' }} onClick={(e) => e.stopPropagation()} id="waste-report-modal">
+            <div className="drawer-header" style={{ padding: '18px 24px' }}>
+              <h3>⚠️ Fire / Zayiat Bildir</h3>
+              <button className="btn-close-drawer" onClick={() => setIsWasteModalOpen(false)} id="btn-close-waste-modal">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleWasteSubmit} className="drawer-form" style={{ padding: '24px' }} id="waste-report-form">
+              <div className="input-group">
+                <label htmlFor="waste-product-select">Ürün Seçin</label>
+                <select
+                  id="waste-product-select"
+                  value={wasteProductId}
+                  onChange={(e) => setWasteProductId(e.target.value)}
+                  required
+                >
+                  <option value="">Seçiniz...</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} (Mevcut: {p.stockAmount} {p.unit})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="waste-qty-input">Fire Miktarı</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0.01"
+                  id="waste-qty-input"
+                  placeholder="0.00"
+                  value={wasteQty}
+                  onChange={(e) => setWasteQty(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="waste-reason-select">Zayiat Nedeni</label>
+                <select
+                  id="waste-reason-select"
+                  value={wasteReason}
+                  onChange={(e) => setWasteReason(e.target.value)}
+                >
+                  {WASTE_REASONS.map((reason, idx) => (
+                    <option key={idx} value={reason}>{reason}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="drawer-footer" style={{ padding: 0, marginTop: 12 }}>
+                <button type="button" className="btn-cancel" onClick={() => setIsWasteModalOpen(false)} id="btn-waste-cancel">
+                  İptal
+                </button>
+                <button type="submit" className="btn-save" style={{ backgroundColor: '#F98D2E' }} id="btn-waste-submit">
+                  Zayiatı Kaydet
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
+// Custom style for WhatsApp button
+const waBtnStyle = {
+  background: '#E8FDF5',
+  border: '1px solid rgba(30,175,138,0.2)',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  padding: '3px 6px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'all 0.15s ease'
+};
