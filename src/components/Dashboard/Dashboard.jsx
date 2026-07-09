@@ -1,0 +1,549 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Boxes, Layers, TrendingUp, Settings, LogOut, Download, Upload, Trash2, 
+  User, Briefcase, DollarSign, Key, Bell, RefreshCw, Sparkles, MessageSquare, Bot 
+} from 'lucide-react';
+import StockList from './StockList';
+import RecipeManager from './RecipeManager';
+import SudaBot from './SudaBot';
+import { 
+  getAllProducts, addProduct, updateProduct, deleteProduct, 
+  getAllRecipes, addRecipe, deleteRecipe, 
+  getAllLogs, addLog, exportBackup, importBackup, setSetting 
+} from '../../utils/db';
+import { getSudaBotStockAnalysis } from '../../utils/gemini';
+import './Dashboard.css';
+
+export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
+  const [activeTab, setActiveTab] = useState('stock');
+  const [products, setProducts] = useState([]);
+  const [recipes, setRecipes] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [aiReport, setAiReport] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Settings form states
+  const [editName, setEditName] = useState(businessInfo.businessName);
+  const [editOwner, setEditOwner] = useState(businessInfo.ownerName);
+  const [editCurrency, setEditCurrency] = useState(businessInfo.currency);
+  const [editApiKey, setEditApiKey] = useState(businessInfo.geminiApiKey || '');
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+
+  // Load database tables
+  const loadData = async () => {
+    try {
+      const prodList = await getAllProducts();
+      setProducts(prodList);
+      
+      const recList = await getAllRecipes();
+      setRecipes(recList);
+      
+      const logList = await getAllLogs();
+      setLogs(logList);
+
+      // Check for notifications (critical levels)
+      const criticals = prodList.filter(p => p.stockAmount <= p.criticalLevel);
+      const notifs = criticals.map(p => ({
+        id: p.id,
+        message: `${p.name} stoğu kritik seviyede! (${p.stockAmount} ${p.unit} kaldı)`,
+        type: p.stockAmount === 0 ? 'empty' : 'warning'
+      }));
+      setNotifications(notifs);
+    } catch (e) {
+      console.error('Failed to load data from IndexedDB:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Stock CRUD actions
+  const handleAddProduct = async (product) => {
+    await addProduct(product);
+    await addLog('add', `Yeni ürün eklendi: ${product.name}`, `${product.stockAmount} ${product.unit} başlangıç stoğu.`);
+    await loadData();
+  };
+
+  const handleUpdateProduct = async (product) => {
+    await updateProduct(product);
+    await addLog('system', `Ürün güncellendi: ${product.name}`, `Yeni fiyat: ${product.price}, Limit: ${product.criticalLevel}`);
+    await loadData();
+  };
+
+  const handleDeleteProduct = async (id) => {
+    const prod = products.find(p => p.id === id);
+    if (!prod) return;
+    if (confirm(`"${prod.name}" ürününü silmek istediğinize emin misiniz?`)) {
+      await deleteProduct(id);
+      await addLog('reduce', `Ürün silindi: ${prod.name}`, '');
+      await loadData();
+    }
+  };
+
+  const handleQuickAdjust = async (id, delta) => {
+    const prod = products.find(p => p.id === id);
+    if (!prod) return;
+    const newAmount = Math.max(0, prod.stockAmount + delta);
+    const updated = { ...prod, stockAmount: newAmount };
+    await updateProduct(updated);
+    
+    const type = delta > 0 ? 'add' : 'reduce';
+    const msg = delta > 0 
+      ? `${prod.name} stoğu arttırıldı (+${Math.abs(delta)})`
+      : `${prod.name} stoğu azaltıldı (-${Math.abs(delta)})`;
+    
+    await addLog(type, msg, `Mevcut stok: ${newAmount} ${prod.unit}`);
+    await loadData();
+  };
+
+  // Recipe CRUD actions
+  const handleAddRecipe = async (recipe) => {
+    await addRecipe(recipe);
+    await addLog('system', `Yeni reçete oluşturuldu: ${recipe.name}`, `${recipe.ingredients.length} malzeme tanımlandı.`);
+    await loadData();
+  };
+
+  const handleDeleteRecipe = async (id) => {
+    const rec = recipes.find(r => r.id === id);
+    if (!rec) return;
+    if (confirm(`"${rec.name}" reçetesini silmek istiyor musunuz?`)) {
+      await deleteRecipe(id);
+      await addLog('system', `Reçete silindi: ${rec.name}`, '');
+      await loadData();
+    }
+  };
+
+  const handleProduceRecipe = async (recipe, qty) => {
+    // Deduct stock for all ingredients
+    for (const ing of recipe.ingredients) {
+      const product = products.find(p => p.id === ing.productId);
+      if (product) {
+        const newAmount = Math.max(0, product.stockAmount - (ing.amount * qty));
+        await updateProduct({ ...product, stockAmount: newAmount });
+      }
+    }
+
+    await addLog('sell', `Üretim Yapıldı: ${qty} Adet "${recipe.name}"`, `Malzemeler stoktan düşüldü.`);
+    await loadData();
+  };
+
+  // AI analysis trigger
+  const generateAIReport = async () => {
+    if (!businessInfo.geminiApiKey) return;
+    setIsAiLoading(true);
+    setAiReport('');
+    try {
+      const report = await getSudaBotStockAnalysis(
+        businessInfo.geminiApiKey,
+        products,
+        logs,
+        businessInfo.businessType,
+        businessInfo.businessName
+      );
+      setAiReport(report);
+    } catch (e) {
+      setAiReport('Rapor üretilirken bir hata oluştu: ' + e.message);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'ai') {
+      generateAIReport();
+    }
+  }, [activeTab]);
+
+  // Settings Save
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    const updated = {
+      ...businessInfo,
+      businessName: editName,
+      ownerName: editOwner,
+      currency: editCurrency,
+      geminiApiKey: editApiKey
+    };
+    
+    // Save to DB settings store
+    await setSetting('business_profile', updated);
+    onUpdateSettings(updated);
+    
+    setSettingsSuccess('Ayarlar başarıyla kaydedildi!');
+    setTimeout(() => setSettingsSuccess(''), 3000);
+  };
+
+  // Export JSON backup
+  const handleExport = async () => {
+    const dataStr = await exportBackup();
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `suda_dynamics_stok_${businessInfo.businessName.toLowerCase().replace(/\s+/g, '_')}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  // Import JSON backup
+  const handleImport = (e) => {
+    const fileReader = new FileReader();
+    fileReader.readAsText(e.target.files[0], "UTF-8");
+    fileReader.onload = async (event) => {
+      try {
+        const backupData = event.target.result;
+        await importBackup(backupData);
+        alert('Yedekleme dosyası başarıyla yüklendi! Veritabanı güncellendi.');
+        // Reload all data
+        await loadData();
+        // Read new profile if changed
+        const profile = products; // dummy
+        window.location.reload(); // Quick refresh to sync all components
+      } catch (err) {
+        alert('Hata! Geçersiz yedekleme dosyası.');
+      }
+    };
+  };
+
+  // Calculations
+  const totalStockValue = products.reduce((acc, p) => acc + (p.stockAmount * p.price), 0);
+  const criticalCount = products.filter(p => p.stockAmount <= p.criticalLevel).length;
+
+  const getBusinessTypeLabel = (type) => {
+    const labels = { pastane: '🧁 Pastane', cafe: '☕ Cafe', firin: '🥖 Fırın', market: '🛒 Market' };
+    return labels[type] || '💼 Genel';
+  };
+
+  return (
+    <div className="dashboard-layout animate-fade-in" id="dashboard-wrapper">
+      
+      {/* Sidebar Panel */}
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-suda">
+            <span>S</span>
+            <span className="orange-letter">U</span>
+            <span className="green-letter">D</span>
+            <span className="purple-letter">A</span>
+          </div>
+          <span className="sidebar-dynamics">&lt; DYNAMICS &gt;</span>
+        </div>
+
+        <div className="business-tag">
+          <span className="business-tag-type">{getBusinessTypeLabel(businessInfo.businessType)}</span>
+          <span className="business-tag-name">{businessInfo.businessName}</span>
+        </div>
+
+        <nav className="sidebar-nav">
+          <button 
+            className={`nav-item ${activeTab === 'stock' ? 'active' : ''}`}
+            onClick={() => setActiveTab('stock')}
+            id="tab-btn-stock"
+          >
+            <Boxes size={20} />
+            <span>Stok Listesi</span>
+          </button>
+          
+          {/* Render recipes tab only for recipes-based business types */}
+          {['pastane', 'cafe', 'firin'].includes(businessInfo.businessType) && (
+            <button 
+              className={`nav-item ${activeTab === 'recipes' ? 'active' : ''}`}
+              onClick={() => setActiveTab('recipes')}
+              id="tab-btn-recipes"
+            >
+              <Layers size={20} />
+              <span>Reçeteler & Üretim</span>
+            </button>
+          )}
+
+          <button 
+            className={`nav-item ${activeTab === 'ai' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ai')}
+            id="tab-btn-ai"
+          >
+            <Sparkles size={20} className="sparkle-icon" />
+            <span>Suda AI Rapor</span>
+          </button>
+
+          <button 
+            className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+            id="tab-btn-settings"
+          >
+            <Settings size={20} />
+            <span>Ayarlar & Yedek</span>
+          </button>
+        </nav>
+
+        <button className="btn-logout" onClick={onReset} id="btn-reset-project">
+          <LogOut size={18} />
+          <span>Sistemi Sıfırla</span>
+        </button>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="main-content">
+        
+        {/* Topbar navigation panel */}
+        <header className="topbar">
+          <div className="topbar-welcome">
+            <h1>Merhaba, {businessInfo.ownerName} 👋</h1>
+            <p>Bugün işletmenizin stok durumu oldukça iyi görünüyor.</p>
+          </div>
+
+          <div className="topbar-actions">
+            {/* Notifications panel dropdown indicator */}
+            <div className="notification-bell-wrapper" id="bell-dropdown-trigger">
+              <button className="btn-bell" aria-label="Bildirimler">
+                <Bell size={20} />
+                {notifications.length > 0 && <span className="bell-badge">{notifications.length}</span>}
+              </button>
+              
+              {notifications.length > 0 && (
+                <div className="notifications-dropdown">
+                  <div className="notif-header">Uyarılar & Bildirimler</div>
+                  <div className="notif-list">
+                    {notifications.map((notif, idx) => (
+                      <div key={idx} className={`notif-item ${notif.type}`}>
+                        <span>{notif.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button className="btn-backup-export" onClick={handleExport} id="btn-topbar-export">
+              <Download size={16} /> Yedek İndir
+            </button>
+          </div>
+        </header>
+
+        {/* Dynamic Analytics Summary Grid */}
+        <section className="analytics-grid">
+          <div className="analytic-card glow-card border-purple">
+            <div className="card-desc">Toplam Ürün Çeşidi</div>
+            <div className="card-value text-purple">{products.length}</div>
+            <span className="badge badge-purple">Aktif Ürünler</span>
+          </div>
+
+          <div className="analytic-card glow-card border-orange">
+            <div className="card-desc">Kritik Stok Uyarısı</div>
+            <div className="card-value text-orange">{criticalCount}</div>
+            <span className={`badge ${criticalCount > 0 ? 'badge-danger' : 'badge-success'}`}>
+              {criticalCount > 0 ? 'Hemen İncele!' : 'Her şey Yolunda'}
+            </span>
+          </div>
+
+          <div className="analytic-card glow-card border-teal">
+            <div className="card-desc">Toplam Stok Değeri</div>
+            <div className="card-value text-teal">{totalStockValue.toFixed(2)} {businessInfo.currency}</div>
+            <span className="badge badge-success">Mevcut Varlık</span>
+          </div>
+        </section>
+
+        {/* Dynamic Screen Area */}
+        <section className="content-card-box">
+          {activeTab === 'stock' && (
+            <StockList
+              products={products}
+              currency={businessInfo.currency}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProduct={handleDeleteProduct}
+              onQuickAdjust={handleQuickAdjust}
+            />
+          )}
+
+          {activeTab === 'recipes' && (
+            <RecipeManager
+              products={products}
+              recipes={recipes}
+              onAddRecipe={handleAddRecipe}
+              onDeleteRecipe={handleDeleteRecipe}
+              onProduceRecipe={handleProduceRecipe}
+            />
+          )}
+
+          {activeTab === 'ai' && (
+            <div className="ai-report-container animate-fade-in" id="ai-report-tab">
+              <div className="ai-report-header">
+                <div className="ai-title">
+                  <Bot size={28} className="ai-bot-icon" />
+                  <div>
+                    <h3>SudaBot AI Akıllı Stok Analiz Raporu</h3>
+                    <p>Yapay Zeka ile stoklarınızın geleceğini görün.</p>
+                  </div>
+                </div>
+                {businessInfo.geminiApiKey && (
+                  <button className="btn-refresh-ai" onClick={generateAIReport} disabled={isAiLoading} id="btn-refresh-ai-report">
+                    <RefreshCw size={16} className={isAiLoading ? 'spin' : ''} /> Raporu Yenile
+                  </button>
+                )}
+              </div>
+
+              {!businessInfo.geminiApiKey ? (
+                <div className="ai-no-key animate-pop-in">
+                  <Key size={48} className="key-icon animate-float" />
+                  <h4>Gemini API Anahtarı Gerekli</h4>
+                  <p>Yapay zeka asistanının stok durumunuzu ve loglarınızı analiz edip, size özel talep tahminleri ve tarif önerileri sunabilmesi için bir API anahtarına ihtiyacı var.</p>
+                  <button className="btn-primary" style={{ width: 'auto', marginTop: 16 }} onClick={() => setActiveTab('settings')} id="btn-go-settings-for-key">
+                    Hemen API Key Ekle
+                  </button>
+                </div>
+              ) : isAiLoading ? (
+                <div className="ai-loading-box">
+                  <div className="ai-loading-spinner"></div>
+                  <p>SudaBot veritabanınızı analiz ediyor, yapay zeka raporu hazırlanıyor...</p>
+                </div>
+              ) : (
+                <div className="ai-report-content animate-pop-in">
+                  <div className="ai-sparkle-badge">
+                    <Sparkles size={16} /> <span>SudaBot AI Raporu</span>
+                  </div>
+                  <div className="ai-text-block">
+                    {aiReport.split('\n').map((line, i) => (
+                      <p key={i}>{line}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="settings-container animate-fade-in" id="settings-section">
+              <h2>⚙️ Ayarlar & Veri Yönetimi</h2>
+              <p className="settings-subtitle">İşletme bilgilerinizi güncelleyin ve verilerinizi yedekleyin.</p>
+
+              {settingsSuccess && (
+                <div className="recipe-alert success animate-pop-in">
+                  <Check size={20} />
+                  <span>{settingsSuccess}</span>
+                </div>
+              )}
+
+              <div className="settings-grid">
+                {/* Form edit profile */}
+                <form onSubmit={handleSaveSettings} className="settings-form" id="business-settings-form">
+                  <h3>Profil Güncelleme</h3>
+                  
+                  <div className="input-group">
+                    <label htmlFor="settings-name">İşletme Adı</label>
+                    <input
+                      type="text"
+                      id="settings-name"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="input-group">
+                    <label htmlFor="settings-owner">Yetkili / Yönetici</label>
+                    <input
+                      type="text"
+                      id="settings-owner"
+                      value={editOwner}
+                      onChange={(e) => setEditOwner(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="input-group">
+                    <label htmlFor="settings-currency">Para Birimi</label>
+                    <select
+                      id="settings-currency"
+                      value={editCurrency}
+                      onChange={(e) => setEditCurrency(e.target.value)}
+                    >
+                      <option value="₺">Türk Lirası (₺)</option>
+                      <option value="$">Dolar ($)</option>
+                      <option value="€">Euro (€)</option>
+                      <option value="£">Sterlin (£)</option>
+                    </select>
+                  </div>
+
+                  <div className="input-group">
+                    <label htmlFor="settings-apikey" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>Google Gemini API Key</span>
+                      <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" className="api-help-link">
+                        (API Key Al)
+                      </a>
+                    </label>
+                    <input
+                      type="password"
+                      id="settings-apikey"
+                      value={editApiKey}
+                      onChange={(e) => setEditApiKey(e.target.value)}
+                      placeholder="AI Raporu ve Chat için API Key yapıştırın"
+                    />
+                  </div>
+
+                  <button type="submit" className="btn-save-settings" id="btn-save-settings-submit">
+                    Ayarları Kaydet
+                  </button>
+                </form>
+
+                {/* Backup actions */}
+                <div className="settings-backup-panel">
+                  <h3>Veri Yönetimi</h3>
+                  <p>Verilerinizi güvende tutmak için bilgisayarınıza yedek alabilir veya mevcut bir yedeği sisteme yükleyebilirsiniz.</p>
+
+                  <div className="backup-actions">
+                    <button className="btn-backup-download" onClick={handleExport} id="btn-settings-export">
+                      <Download size={18} /> Veritabanını Yedekle (.JSON)
+                    </button>
+
+                    <div className="backup-upload-wrapper">
+                      <label htmlFor="backup-file-input" className="btn-backup-upload" id="lbl-settings-import">
+                        <Upload size={18} /> Yedekten Geri Yükle (.JSON)
+                      </label>
+                      <input
+                        type="file"
+                        id="backup-file-input"
+                        accept=".json"
+                        onChange={handleImport}
+                        style={{ display: 'none' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="settings-log-box">
+                    <h4>Son Stok Hareketleri</h4>
+                    <div className="logs-list">
+                      {logs.length === 0 ? (
+                        <p className="no-logs">Henüz hareket kaydı bulunmuyor.</p>
+                      ) : (
+                        logs.slice(0, 8).map((log, idx) => (
+                          <div key={idx} className={`log-item log-${log.type}`}>
+                            <div className="log-msg">{log.message}</div>
+                            <div className="log-meta">
+                              <span>{log.details}</span>
+                              <span>{new Date(log.date).toLocaleTimeString()}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      </main>
+
+      {/* Floating SudaBot Assistant */}
+      <SudaBot
+        products={products}
+        logs={logs}
+        businessInfo={businessInfo}
+        onOpenSettings={() => setActiveTab('settings')}
+      />
+    </div>
+  );
+}
