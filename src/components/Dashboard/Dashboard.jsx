@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Boxes, Layers, TrendingUp, Settings, LogOut, Download, Upload, Trash2, 
-  User, Briefcase, DollarSign, Key, Bell, RefreshCw, Sparkles, MessageSquare, Bot 
+  Boxes, Layers, Settings, LogOut, Download, Upload, Trash2, 
+  User, Briefcase, DollarSign, Key, Bell, RefreshCw, Sparkles, Bot, 
+  Truck, Printer, Receipt 
 } from 'lucide-react';
 import StockList from './StockList';
 import RecipeManager from './RecipeManager';
+import StockCharts from './StockCharts';
+import SupplierManager from './SupplierManager';
 import SudaBot from './SudaBot';
 import { 
   getAllProducts, addProduct, updateProduct, deleteProduct, 
   getAllRecipes, addRecipe, deleteRecipe, 
-  getAllLogs, addLog, exportBackup, importBackup, setSetting 
+  getAllLogs, addLog, exportBackup, importBackup, setSetting,
+  getAllSuppliers, addSupplier, updateSupplier, deleteSupplier 
 } from '../../utils/db';
 import { getSudaBotStockAnalysis } from '../../utils/gemini';
 import './Dashboard.css';
@@ -18,6 +22,7 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
   const [activeTab, setActiveTab] = useState('stock');
   const [products, setProducts] = useState([]);
   const [recipes, setRecipes] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [logs, setLogs] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [aiReport, setAiReport] = useState('');
@@ -38,6 +43,9 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
       
       const recList = await getAllRecipes();
       setRecipes(recList);
+
+      const supList = await getAllSuppliers();
+      setSuppliers(supList);
       
       const logList = await getAllLogs();
       setLogs(logList);
@@ -68,7 +76,7 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
 
   const handleUpdateProduct = async (product) => {
     await updateProduct(product);
-    await addLog('system', `Ürün güncellendi: ${product.name}`, `Yeni fiyat: ${product.price}, Limit: ${product.criticalLevel}`);
+    await addLog('system', `Ürün güncellendi: ${product.name}`, `Fiyat: ${product.price}, Limit: ${product.criticalLevel}`);
     await loadData();
   };
 
@@ -116,7 +124,6 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
   };
 
   const handleProduceRecipe = async (recipe, qty) => {
-    // Deduct stock for all ingredients
     for (const ing of recipe.ingredients) {
       const product = products.find(p => p.id === ing.productId);
       if (product) {
@@ -126,6 +133,59 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
     }
 
     await addLog('sell', `Üretim Yapıldı: ${qty} Adet "${recipe.name}"`, `Malzemeler stoktan düşüldü.`);
+    await loadData();
+  };
+
+  // Supplier / Cari Actions
+  const handleAddSupplier = async (supplier) => {
+    await addSupplier(supplier);
+    await addLog('system', `Yeni tedarikçi eklendi: ${supplier.company}`, `Yetkili: ${supplier.name}, Borç: ${supplier.balance}`);
+    await loadData();
+  };
+
+  const handleDeleteSupplier = async (id) => {
+    const sup = suppliers.find(s => s.id === id);
+    if (!sup) return;
+    if (confirm(`"${sup.company}" tedarikçi kartını silmek istediğinize emin misiniz?`)) {
+      await deleteSupplier(id);
+      await addLog('system', `Tedarikçi silindi: ${sup.company}`, '');
+      await loadData();
+    }
+  };
+
+  const handleBuyStock = async (supplier, product, qty, unitPrice) => {
+    const totalCost = qty * unitPrice;
+    
+    // 1. Update product stock
+    const updatedProduct = {
+      ...product,
+      stockAmount: product.stockAmount + qty,
+      price: unitPrice // Optional: update current cost price
+    };
+    await updateProduct(updatedProduct);
+
+    // 2. Update supplier debt balance
+    const updatedSupplier = {
+      ...supplier,
+      balance: supplier.balance + totalCost
+    };
+    await updateSupplier(updatedSupplier);
+
+    // 3. Log transaction
+    await addLog('add', `Stok Alımı: ${qty} ${product.unit} ${product.name}`, `Tedarikçi: ${supplier.company}, Borç: +${totalCost.toFixed(2)} ${businessInfo.currency}`);
+    await loadData();
+  };
+
+  const handleMakePayment = async (supplier, amount) => {
+    // 1. Update supplier balance
+    const updatedSupplier = {
+      ...supplier,
+      balance: Math.max(0, supplier.balance - amount)
+    };
+    await updateSupplier(updatedSupplier);
+
+    // 2. Log transaction
+    await addLog('reduce', `Ödeme Yapıldı: ${supplier.company}`, `Tutar: -${amount.toFixed(2)} ${businessInfo.currency}`);
     await loadData();
   };
 
@@ -167,7 +227,6 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
       geminiApiKey: editApiKey
     };
     
-    // Save to DB settings store
     await setSetting('business_profile', updated);
     onUpdateSettings(updated);
     
@@ -179,7 +238,6 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
   const handleExport = async () => {
     const dataStr = await exportBackup();
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
     const exportFileDefaultName = `suda_dynamics_stok_${businessInfo.businessName.toLowerCase().replace(/\s+/g, '_')}.json`;
     
     const linkElement = document.createElement('a');
@@ -197,19 +255,87 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
         const backupData = event.target.result;
         await importBackup(backupData);
         alert('Yedekleme dosyası başarıyla yüklendi! Veritabanı güncellendi.');
-        // Reload all data
-        await loadData();
-        // Read new profile if changed
-        const profile = products; // dummy
-        window.location.reload(); // Quick refresh to sync all components
+        window.location.reload();
       } catch (err) {
         alert('Hata! Geçersiz yedekleme dosyası.');
       }
     };
   };
 
+  // Printing Logs / Fiş
+  const handlePrintLog = (log) => {
+    const printWindow = window.open('', '_blank', 'width=600,height=600');
+    
+    const htmlContent = `
+      <html>
+        <head>
+          <title>SUDA Dynamics - Stok Fişi</title>
+          <style>
+            body { font-family: 'Outfit', sans-serif; padding: 30px; color: #1F2E4D; line-height: 1.4; }
+            .header { text-align: center; border-bottom: 2px dashed #0B1B3D; padding-bottom: 15px; margin-bottom: 20px; }
+            .header h2 { margin: 0; color: #0B1B3D; font-size: 20px; letter-spacing: 1px; }
+            .header p { margin: 5px 0 0 0; font-size: 11px; color: #64748B; text-transform: uppercase; }
+            .details-box { background-color: #F8FAFB; border-radius: 8px; padding: 15px; margin-bottom: 20px; border: 1px solid #E5E9F0; }
+            .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+            .row:last-child { margin-bottom: 0; }
+            .row strong { color: #0B1B3D; }
+            .receipt-desc { font-size: 14px; font-weight: 600; padding: 10px 0; border-bottom: 1px solid #E5E9F0; margin-bottom: 10px; }
+            .footer { text-align: center; margin-top: 30px; font-size: 10px; color: #94A3B8; border-top: 1px dashed #E5E9F0; padding-top: 15px; }
+            @media print {
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2>SUDA DYNAMICS</h2>
+            <p>STOK HAREKET FİŞİ</p>
+          </div>
+          
+          <div class="details-box">
+            <div class="row">
+              <span>İşletme:</span>
+              <strong>${businessInfo.businessName}</strong>
+            </div>
+            <div class="row">
+              <span>İşlem Tarihi:</span>
+              <strong>${new Date(log.date).toLocaleString()}</strong>
+            </div>
+            <div class="row">
+              <span>İşlem Türü:</span>
+              <strong>${log.type.toUpperCase()}</strong>
+            </div>
+          </div>
+          
+          <div class="receipt-desc">
+            ${log.message}
+          </div>
+          <div class="row" style="font-size: 13px; margin-top: 5px; color: #64748B;">
+            <span>Açıklama:</span>
+            <span>${log.details || '-'}</span>
+          </div>
+
+          <div class="footer">
+            SUDA Dynamics Stok Takip Sistemi tarafından üretilmiştir.<br>Takipte kalın, büyük şeyler geliyor!
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            }
+          </script>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   // Calculations
   const totalStockValue = products.reduce((acc, p) => acc + (p.stockAmount * p.price), 0);
+  const totalDebt = suppliers.reduce((acc, s) => acc + s.balance, 0);
   const criticalCount = products.filter(p => p.stockAmount <= p.criticalLevel).length;
 
   const getBusinessTypeLabel = (type) => {
@@ -260,6 +386,15 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
           )}
 
           <button 
+            className={`nav-item ${activeTab === 'suppliers' ? 'active' : ''}`}
+            onClick={() => setActiveTab('suppliers')}
+            id="tab-btn-suppliers"
+          >
+            <Truck size={20} />
+            <span>Tedarikçi & Cari</span>
+          </button>
+
+          <button 
             className={`nav-item ${activeTab === 'ai' ? 'active' : ''}`}
             onClick={() => setActiveTab('ai')}
             id="tab-btn-ai"
@@ -295,7 +430,6 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
           </div>
 
           <div className="topbar-actions">
-            {/* Notifications panel dropdown indicator */}
             <div className="notification-bell-wrapper" id="bell-dropdown-trigger">
               <button className="btn-bell" aria-label="Bildirimler">
                 <Bell size={20} />
@@ -348,14 +482,19 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
         {/* Dynamic Screen Area */}
         <section className="content-card-box">
           {activeTab === 'stock' && (
-            <StockList
-              products={products}
-              currency={businessInfo.currency}
-              onAddProduct={handleAddProduct}
-              onUpdateProduct={handleUpdateProduct}
-              onDeleteProduct={handleDeleteProduct}
-              onQuickAdjust={handleQuickAdjust}
-            />
+            <>
+              {/* Show dashboard charts directly on top of the stock view */}
+              <StockCharts products={products} currency={businessInfo.currency} />
+              
+              <StockList
+                products={products}
+                currency={businessInfo.currency}
+                onAddProduct={handleAddProduct}
+                onUpdateProduct={handleUpdateProduct}
+                onDeleteProduct={handleDeleteProduct}
+                onQuickAdjust={handleQuickAdjust}
+              />
+            </>
           )}
 
           {activeTab === 'recipes' && (
@@ -365,6 +504,19 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
               onAddRecipe={handleAddRecipe}
               onDeleteRecipe={handleDeleteRecipe}
               onProduceRecipe={handleProduceRecipe}
+            />
+          )}
+
+          {activeTab === 'suppliers' && (
+            <SupplierManager
+              products={products}
+              suppliers={suppliers}
+              currency={businessInfo.currency}
+              onAddSupplier={handleAddSupplier}
+              onUpdateSupplier={handleUpdateSupplier}
+              onDeleteSupplier={handleDeleteSupplier}
+              onBuyStock={handleBuyStock}
+              onMakePayment={handleMakePayment}
             />
           )}
 
@@ -421,13 +573,12 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
 
               {settingsSuccess && (
                 <div className="recipe-alert success animate-pop-in">
-                  <Check size={20} />
+                  <CheckCircle size={20} />
                   <span>{settingsSuccess}</span>
                 </div>
               )}
 
               <div className="settings-grid">
-                {/* Form edit profile */}
                 <form onSubmit={handleSaveSettings} className="settings-form" id="business-settings-form">
                   <h3>Profil Güncelleme</h3>
                   
@@ -488,7 +639,6 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
                   </button>
                 </form>
 
-                {/* Backup actions */}
                 <div className="settings-backup-panel">
                   <h3>Veri Yönetimi</h3>
                   <p>Verilerinizi güvende tutmak için bilgisayarınıza yedek alabilir veya mevcut bir yedeği sisteme yükleyebilirsiniz.</p>
@@ -520,7 +670,18 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
                       ) : (
                         logs.slice(0, 8).map((log, idx) => (
                           <div key={idx} className={`log-item log-${log.type}`}>
-                            <div className="log-msg">{log.message}</div>
+                            <div className="log-msg-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span className="log-msg">{log.message}</span>
+                              <button 
+                                className="btn-print-receipt-log" 
+                                onClick={() => handlePrintLog(log)}
+                                title="İşlem Fişi Yazdır"
+                                style={printBtnStyle}
+                                id={`btn-print-log-${log.id || idx}`}
+                              >
+                                <Printer size={12} /> Fiş Yazdır
+                              </button>
+                            </div>
                             <div className="log-meta">
                               <span>{log.details}</span>
                               <span>{new Date(log.date).toLocaleTimeString()}</span>
@@ -547,3 +708,19 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
     </div>
   );
 }
+
+// Inline styling for tiny print logs button
+const printBtnStyle = {
+  background: '#F1F5F9',
+  border: '1px solid #CBD5E1',
+  borderRadius: '4px',
+  color: '#475569',
+  fontSize: '10px',
+  fontWeight: '600',
+  padding: '3px 8px',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '4px',
+  transition: 'all 0.15s ease'
+};

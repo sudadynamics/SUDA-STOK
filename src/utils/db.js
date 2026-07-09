@@ -1,5 +1,5 @@
 const DB_NAME = 'SudaStokDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export const initDB = () => {
   return new Promise((resolve, reject) => {
@@ -35,6 +35,11 @@ export const initDB = () => {
       // Store for logs
       if (!db.objectStoreNames.contains('logs')) {
         db.createObjectStore('logs', { keyPath: 'id', autoIncrement: true });
+      }
+
+      // Store for suppliers (Cari)
+      if (!db.objectStoreNames.contains('suppliers')) {
+        db.createObjectStore('suppliers', { keyPath: 'id', autoIncrement: true });
       }
     };
   });
@@ -198,7 +203,7 @@ export const exportBackup = async () => {
   const db = await initDB();
   const backup = {};
   
-  const stores = ['settings', 'products', 'recipes', 'logs'];
+  const stores = ['settings', 'products', 'recipes', 'logs', 'suppliers'];
   for (const storeName of stores) {
     const tx = db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);
@@ -215,7 +220,7 @@ export const importBackup = async (backupJson) => {
   const backup = JSON.parse(backupJson);
   const db = await initDB();
   
-  const stores = ['settings', 'products', 'recipes', 'logs'];
+  const stores = ['settings', 'products', 'recipes', 'logs', 'suppliers'];
   for (const storeName of stores) {
     if (!backup[storeName]) continue;
     
@@ -235,4 +240,49 @@ export const importBackup = async (backupJson) => {
     });
   }
   return true;
+};
+
+// Suppliers CRUD
+export const getAllSuppliers = async () => {
+  const store = await getStore('suppliers', 'readonly');
+  return new Promise((resolve, reject) => {
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const addSupplier = async (supplier) => {
+  const store = await getStore('suppliers', 'readwrite');
+  return new Promise((resolve, reject) => {
+    const item = {
+      ...supplier,
+      balance: parseFloat(supplier.balance) || 0
+    };
+    const request = store.add(item);
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const updateSupplier = async (supplier) => {
+  const store = await getStore('suppliers', 'readwrite');
+  return new Promise((resolve, reject) => {
+    const item = {
+      ...supplier,
+      balance: parseFloat(supplier.balance) || 0
+    };
+    const request = store.put(item);
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const deleteSupplier = async (id) => {
+  const store = await getStore('suppliers', 'readwrite');
+  return new Promise((resolve, reject) => {
+    const request = store.delete(id);
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject(request.error);
+  });
 };
