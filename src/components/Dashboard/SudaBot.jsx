@@ -126,11 +126,6 @@ export default function SudaBot({ products, logs, businessInfo, onOpenSettings }
               <div className="message-avatar">🤖</div>
               <div className="message-text">
                 Merhaba! Ben <strong>SudaBot</strong>. {businessInfo.businessName} için stoklarınızı analiz edebilir, tarif/reçete üretebilir veya kritik durumları inceleyebilirim.
-                {!apiKey && (
-                  <div className="apiKey-info-box" style={{ marginTop: 8, fontSize: '0.75rem', color: '#6D28D9', borderTop: '1px dashed rgba(124, 58, 237, 0.2)', paddingTop: 8, lineHeight: '1.4' }}>
-                    💡 Varsayılan SudaBot AI aktif! Kendi API anahtarınızı tanımlamak isterseniz Ayarlar panelini kullanabilirsiniz.
-                  </div>
-                )}
               </div>
             </div>
 
