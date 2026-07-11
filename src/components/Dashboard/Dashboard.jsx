@@ -30,7 +30,9 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
   const [notifications, setNotifications] = useState([]);
   const [aiReport, setAiReport] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(() => {
+    return localStorage.getItem('suda_tour_completed') !== 'true';
+  });
 
   // Settings form states
   const [editName, setEditName] = useState(businessInfo.businessName);
@@ -827,7 +829,10 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
       {/* Interactive Guided Tour Walkthrough */}
       <GuidedTour
         isOpen={isTourOpen}
-        onClose={() => setIsTourOpen(false)}
+        onClose={() => {
+          localStorage.setItem('suda_tour_completed', 'true');
+          setIsTourOpen(false);
+        }}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         businessType={businessInfo.businessType}
