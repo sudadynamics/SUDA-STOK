@@ -194,6 +194,11 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
     await loadData();
   };
 
+  const handleUpdateSupplier = async (supplier) => {
+    await updateSupplier(supplier);
+    await loadData();
+  };
+
   const handleDeleteSupplier = async (id) => {
     const sup = suppliers.find(s => s.id === id);
     if (!sup) return;
