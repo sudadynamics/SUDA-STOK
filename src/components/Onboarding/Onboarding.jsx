@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Coffee, Cake, ShoppingBag, Store, ArrowRight, User, Briefcase, DollarSign, HelpCircle, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Coffee, Cake, ShoppingBag, Store, ArrowRight, User, Briefcase, DollarSign, Check } from 'lucide-react';
 import { loadDemoData } from '../../utils/demoData';
 import './Onboarding.css';
 
@@ -51,27 +51,55 @@ export default function Onboarding({ onComplete }) {
   const [setupMode, setSetupMode] = useState('demo'); // 'demo' | 'empty'
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Guided speech states
+  const [speechText, setSpeechText] = useState('Merhaba! Ben SudaBot. Harika bir stok takip sistemi kurmak için sabırsızlanıyorum! Öncelikle seni ve işletmeni tanıyabilir miyim?');
+  const [isFading, setIsFading] = useState(false);
+  const [robotAnimClass, setRobotAnimClass] = useState('robot-idle');
+
+  // Trigger SudaBot visual gesture
+  const triggerMascotAnimation = (animClass) => {
+    setRobotAnimClass(animClass);
+    // Return to idle after animation loops
+    setTimeout(() => {
+      setRobotAnimClass('robot-idle');
+    }, 650);
+  };
+
+  // Change speech text smoothly with opacity transition
+  const changeSpeech = (newText, animClass = '') => {
+    setIsFading(true);
+    if (animClass) {
+      triggerMascotAnimation(animClass);
+    }
+    setTimeout(() => {
+      setSpeechText(newText);
+      setIsFading(false);
+    }, 180);
+  };
+
   const handleNextStep = (e) => {
     e.preventDefault();
     if (businessName.trim() && ownerName.trim()) {
       setStep(2);
+      changeSpeech('Müthiş! Şimdi işletmenin türünü seçer misin? Sistemimizi senin sektörüne göre özelleştireceğim! ✨', 'robot-jump');
     }
   };
 
   const handleSelectType = (typeId) => {
     setBusinessType(typeId);
-    setStep(3); // Go to step 3: Choose database initialization mode
+    setStep(3);
+    changeSpeech('Harika seçim! Şimdi envanterini nasıl başlatmak istersin? İstersen senin için örnek ürünler ve reçeteler yükleyebilirim. Böylece sistemi hemen görebilirsin! 🚀', 'robot-wiggle');
   };
 
   const handleCompleteSetup = async () => {
     setIsSubmitting(true);
+    setRobotAnimClass('robot-dance');
+    changeSpeech('Harika! Şimdi veritabanını kuruyorum, cari hesapları bağlıyorum ve envanterini hazırlıyorum... Lütfen bekleyin! 🎉');
 
     if (setupMode === 'demo') {
-      // Load demo data presets in database
       await loadDemoData(businessType);
     }
 
-    // Delay slightly for smooth transitions
     setTimeout(() => {
       onComplete({
         businessName,
@@ -80,7 +108,58 @@ export default function Onboarding({ onComplete }) {
         businessType,
         createdAt: new Date().toISOString()
       });
-    }, 1500);
+    }, 2200);
+  };
+
+  // Input Focus explainers
+  const handleInputFocus = (field) => {
+    if (step !== 1) return;
+    if (field === 'name') {
+      changeSpeech('Harika bir isim seç! Fişlerde, faturalarda ve raporlarda dükkanının bu tabelası görünecek. 🏢', 'robot-jump');
+    } else if (field === 'owner') {
+      changeSpeech('Sana panelde isminle hitap etmek istiyorum. Kendi adını buraya yazabilirsin! 👋', 'robot-wiggle');
+    } else if (field === 'currency') {
+      changeSpeech('Kasa satışlarında, giderlerde ve zayiat maliyet hesaplarında hangi para birimini kullanalım? 💰', 'robot-jump');
+    }
+  };
+
+  const handleInputBlur = () => {
+    if (step !== 1) return;
+    changeSpeech('Bilgileri girdikten sonra "Devam Et" butonuna basarak bir sonraki adıma geçebilirsin!', 'robot-idle');
+  };
+
+  // Card Hover explainers
+  const handleCardHover = (typeId) => {
+    if (step !== 2) return;
+    const hoverTexts = {
+      pastane: 'Pastane mi? Nefis! 🍰 Pasta, çilek, un ve reçete bazlı hammadde takibini senin için aktif edeceğim!',
+      cafe: 'Cafe mi? Süper! ☕ Süt, şurup ve kahve çekirdeği takibi ile reçeteli üretimleri hazır edeceğim!',
+      firin: 'Fırın mı? Bereketli olsun! 🥖 Un ve maya çuvalları, ekmek üretimi ve hamur reçetelerini kuracağım!',
+      market: 'Market mi? Çok iyi! 📦 Raf ve depo takibi ile barkodlu satış terminalini panelinize ekleyeceğim!'
+    };
+    if (hoverTexts[typeId]) {
+      changeSpeech(hoverTexts[typeId], 'robot-wiggle');
+    }
+  };
+
+  const handleCardHoverLeave = () => {
+    if (step !== 2) return;
+    changeSpeech('Sistemimizi senin sektörüne göre özelleştireceğim! Hangi işletme türü sana uyuyor? ✨', 'robot-idle');
+  };
+
+  // Option Hover explainers
+  const handleOptionHover = (mode) => {
+    if (step !== 3) return;
+    if (mode === 'demo') {
+      changeSpeech('Bunu öneririm! Sektörünüze özel hazır ürünler, cari borçlar ve reçeteler yüklenir, paneli anında dolu görürsünüz. 📊', 'robot-jump');
+    } else if (mode === 'empty') {
+      changeSpeech('Sıfırdan, tertemiz bir sayfa açar. Kendi ürünlerinizi ve fiyatlarınızı baştan girmek için idealdir. 📁', 'robot-wiggle');
+    }
+  };
+
+  const handleOptionHoverLeave = () => {
+    if (step !== 3) return;
+    changeSpeech('Envanterini nasıl başlatmak istersin? İstersen senin için örnek ürünler ve reçeteler yükleyebilirim. 🚀', 'robot-idle');
   };
 
   return (
@@ -105,14 +184,14 @@ export default function Onboarding({ onComplete }) {
 
         {/* Mascot Robot dialog box */}
         <div className="robot-mascot-container">
-          <div className={`robot-avatar ${isSubmitting ? 'robot-celebrate' : 'robot-idle'}`}>
+          <div className={`robot-avatar ${isSubmitting ? 'robot-celebrate' : robotAnimClass}`}>
             <svg viewBox="0 0 100 100" className="robot-svg">
-              <circle cx="50" cy="12" r="5" fill="#1EAF8A" className="antenna-light" />
+              <circle cx="50" cy="12" r="5" fill="#1EAF8A" className="antenna-light-pulse" />
               <line x1="50" y1="12" x2="50" y2="25" stroke="#7C3AED" strokeWidth="4" />
               <rect x="25" y="25" width="50" height="50" rx="20" fill="#7C3AED" />
               <rect x="33" y="33" width="34" height="26" rx="10" fill="#0B1B3D" />
-              <path d="M 40 43 Q 43 40 46 43" stroke="#1EAF8A" strokeWidth="3" fill="none" strokeLinecap="round" />
-              <path d="M 54 43 Q 57 40 60 43" stroke="#1EAF8A" strokeWidth="3" fill="none" strokeLinecap="round" />
+              <circle cx="43" cy="43" r="4" fill="#1EAF8A" className="eye-blink" />
+              <circle cx="57" cy="43" r="4" fill="#1EAF8A" className="eye-blink" />
               <path d="M 44 51 Q 50 56 56 51" stroke="#FFFFFF" strokeWidth="3" fill="none" strokeLinecap="round" />
               <g className="robot-hand">
                 <path d="M 75 45 Q 85 35 90 40" stroke="#7C3AED" strokeWidth="6" strokeLinecap="round" fill="none" />
@@ -120,19 +199,8 @@ export default function Onboarding({ onComplete }) {
               </g>
             </svg>
           </div>
-          <div className="speech-bubble">
-            {step === 1 && (
-              <p>Merhaba! Ben <strong>SudaBot</strong>. Harika bir stok takip sistemi kurmak için sabırsızlanıyorum! Öncelikle seni ve işletmeni tanıyabilir miyim?</p>
-            )}
-            {step === 2 && (
-              <p>Müthiş! Şimdi işletmenin türünü seçer misin? Sistemimizi senin sektörüne göre özelleştireceğim! ✨</p>
-            )}
-            {step === 3 && !isSubmitting && (
-              <p>Harika seçim! Şimdi envanterini nasıl başlatmak istersin? İstersen senin için **örnek ürünler ve reçeteler** yükleyebilirim. Böylece sistemi hemen görebilirsin! 🚀</p>
-            )}
-            {isSubmitting && (
-              <p>Harika! Şimdi veritabanını kuruyorum, cari hesapları bağlıyorum ve envanterini hazırlıyorum... Lütfen bekleyin! 🎉</p>
-            )}
+          <div className={`speech-bubble ${isFading ? 'fade-out' : 'fade-in'}`}>
+            <p>{speechText}</p>
           </div>
         </div>
 
@@ -161,6 +229,8 @@ export default function Onboarding({ onComplete }) {
                   placeholder="Örn: Suda Pastanesi, Dynamics Cafe"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
+                  onFocus={() => handleInputFocus('name')}
+                  onBlur={handleInputBlur}
                   required
                 />
               </div>
@@ -176,6 +246,8 @@ export default function Onboarding({ onComplete }) {
                   placeholder="Örn: Selahattin Sarıbay"
                   value={ownerName}
                   onChange={(e) => setOwnerName(e.target.value)}
+                  onFocus={() => handleInputFocus('owner')}
+                  onBlur={handleInputBlur}
                   required
                 />
               </div>
@@ -189,6 +261,8 @@ export default function Onboarding({ onComplete }) {
                   id="currency-select"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
+                  onFocus={() => handleInputFocus('currency')}
+                  onBlur={handleInputBlur}
                 >
                   <option value="₺">Türk Lirası (₺)</option>
                   <option value="$">Dolar ($)</option>
@@ -224,6 +298,8 @@ export default function Onboarding({ onComplete }) {
                     id={`btn-type-${type.id}`}
                     className="business-type-card glow-card"
                     onClick={() => handleSelectType(type.id)}
+                    onMouseEnter={() => handleCardHover(type.id)}
+                    onMouseLeave={handleCardHoverLeave}
                     style={{
                       '--card-glow-color': type.glow,
                       '--card-accent-color': type.color
@@ -241,7 +317,7 @@ export default function Onboarding({ onComplete }) {
               })}
             </div>
             
-            <button onClick={() => setStep(1)} className="btn-back" id="btn-back-step">
+            <button onClick={() => { setStep(1); changeSpeech('Bilgilerinizi güncelleyebilirsiniz.', 'robot-jump'); }} className="btn-back" id="btn-back-step">
               Geri Dön
             </button>
           </div>
@@ -258,6 +334,8 @@ export default function Onboarding({ onComplete }) {
               <div 
                 className={`setup-mode-option ${setupMode === 'demo' ? 'active' : ''}`}
                 onClick={() => setSetupMode('demo')}
+                onMouseEnter={() => handleOptionHover('demo')}
+                onMouseLeave={handleOptionHoverLeave}
                 id="btn-mode-demo"
               >
                 <div className="option-indicator">
@@ -275,6 +353,8 @@ export default function Onboarding({ onComplete }) {
               <div 
                 className={`setup-mode-option ${setupMode === 'empty' ? 'active' : ''}`}
                 onClick={() => setSetupMode('empty')}
+                onMouseEnter={() => handleOptionHover('empty')}
+                onMouseLeave={handleOptionHoverLeave}
                 id="btn-mode-empty"
               >
                 <div className="option-indicator">
@@ -299,7 +379,7 @@ export default function Onboarding({ onComplete }) {
             </button>
 
             <button 
-              onClick={() => setStep(2)} 
+              onClick={() => { setStep(2); changeSpeech('Sektörünüzü yeniden seçebilirsiniz.', 'robot-jump'); }} 
               className="btn-back" 
               disabled={isSubmitting}
               id="btn-back-step-3"
