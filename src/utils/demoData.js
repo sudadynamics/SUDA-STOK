@@ -3,14 +3,14 @@ import { addProduct, addRecipe, addSupplier, addLog, getAllProducts } from './db
 const DEMO_PRESETS = {
   pastane: {
     products: [
-      { name: 'Buğday Unu', category: 'Un & Maya', unit: 'kg', stockAmount: 120, criticalLevel: 25, price: 18.50 },
-      { name: 'Kristal Şeker', category: 'Hammaddeler', unit: 'kg', stockAmount: 85, criticalLevel: 15, price: 24.00 },
-      { name: 'Taze Çilek', category: 'Meyve & Sebze', unit: 'kg', stockAmount: 12, criticalLevel: 4, price: 65.00 },
-      { name: 'Pastörize Süt', category: 'Süt & Şarküteri', unit: 'L', stockAmount: 40, criticalLevel: 10, price: 19.80 },
-      { name: 'Kakao Tozu', category: 'Hammaddeler', unit: 'kg', stockAmount: 8, criticalLevel: 2, price: 110.00 },
-      { name: 'Tereyağı', category: 'Süt & Şarküteri', unit: 'kg', stockAmount: 15, criticalLevel: 3, price: 185.00 },
-      { name: 'Karton Pasta Kutusu', category: 'Ambalaj & Paket', unit: 'Adet', stockAmount: 200, criticalLevel: 50, price: 4.50 },
-      { name: 'Krem Şanti', category: 'Süt & Şarküteri', unit: 'kg', stockAmount: 18, criticalLevel: 5, price: 75.00 }
+      { name: 'Buğday Unu', category: 'Un & Maya', unit: 'kg', stockAmount: 120, criticalLevel: 25, price: 18.50, expiryOffset: 60 },
+      { name: 'Kristal Şeker', category: 'Hammaddeler', unit: 'kg', stockAmount: 85, criticalLevel: 15, price: 24.00, expiryOffset: 120 },
+      { name: 'Taze Çilek', category: 'Meyve & Sebze', unit: 'kg', stockAmount: 12, criticalLevel: 4, price: 65.00, expiryOffset: 2 }, // Expiry soon
+      { name: 'Pastörize Süt', category: 'Süt & Şarküteri', unit: 'L', stockAmount: 40, criticalLevel: 10, price: 19.80, expiryOffset: -1 }, // Expired!
+      { name: 'Kakao Tozu', category: 'Hammaddeler', unit: 'kg', stockAmount: 8, criticalLevel: 2, price: 110.00, expiryOffset: 90 },
+      { name: 'Tereyağı', category: 'Süt & Şarküteri', unit: 'kg', stockAmount: 15, criticalLevel: 3, price: 185.00, expiryOffset: 15 },
+      { name: 'Karton Pasta Kutusu', category: 'Ambalaj & Paket', unit: 'Adet', stockAmount: 200, criticalLevel: 50, price: 4.50 }, // No expiry
+      { name: 'Krem Şanti', category: 'Süt & Şarküteri', unit: 'kg', stockAmount: 18, criticalLevel: 5, price: 75.00, expiryOffset: 4 }  // Expiry soon
     ],
     suppliers: [
       { name: 'Kemal Aksoy', company: 'Suda Un Sanayi A.Ş.', phone: '0532 111 22 33', email: 'kemal@sudaun.com', balance: 1450.00 },
@@ -46,13 +46,13 @@ const DEMO_PRESETS = {
   },
   cafe: {
     products: [
-      { name: 'Espresso Kahve Çekirdeği', category: 'Kahve & İçecek', unit: 'kg', stockAmount: 30, criticalLevel: 8, price: 340.00 },
-      { name: 'Barista Sütü', category: 'Süt & Şarküteri', unit: 'L', stockAmount: 120, criticalLevel: 20, price: 21.00 },
-      { name: 'Karamel Şurubu', category: 'Kahve & İçecek', unit: 'Kutu', stockAmount: 10, criticalLevel: 3, price: 95.00 },
+      { name: 'Espresso Kahve Çekirdeği', category: 'Kahve & İçecek', unit: 'kg', stockAmount: 30, criticalLevel: 8, price: 340.00, expiryOffset: 90 },
+      { name: 'Barista Sütü', category: 'Süt & Şarküteri', unit: 'L', stockAmount: 120, criticalLevel: 20, price: 21.00, expiryOffset: -2 }, // Expired
+      { name: 'Karamel Şurubu', category: 'Kahve & İçecek', unit: 'Kutu', stockAmount: 10, criticalLevel: 3, price: 95.00, expiryOffset: 150 },
       { name: 'Karton Bardak 12oz', category: 'Ambalaj & Paket', unit: 'Adet', stockAmount: 500, criticalLevel: 100, price: 1.20 },
       { name: 'Karton Bardak Kapağı', category: 'Ambalaj & Paket', unit: 'Adet', stockAmount: 480, criticalLevel: 100, price: 0.60 },
-      { name: 'Çikolatalı Muffin', category: 'Hammaddeler', unit: 'Adet', stockAmount: 18, criticalLevel: 5, price: 28.00 },
-      { name: 'Ihlamur Bitki Çayı', category: 'Kahve & İçecek', unit: 'Paket', stockAmount: 15, criticalLevel: 4, price: 42.00 }
+      { name: 'Çikolatalı Muffin', category: 'Hammaddeler', unit: 'Adet', stockAmount: 18, criticalLevel: 5, price: 28.00, expiryOffset: 3 }, // Expiry soon
+      { name: 'Ihlamur Bitki Çayı', category: 'Kahve & İçecek', unit: 'Paket', stockAmount: 15, criticalLevel: 4, price: 42.00, expiryOffset: 120 }
     ],
     suppliers: [
       { name: 'Ahmet Mert', company: 'Kuzey Kahve İthalat', phone: '0555 444 33 22', email: 'ahmet@kuzeykahve.com', balance: 3400.00 },
@@ -76,11 +76,11 @@ const DEMO_PRESETS = {
   },
   firin: {
     products: [
-      { name: 'Tip 650 Ekmeklik Un', category: 'Un & Maya', unit: 'Çuval', stockAmount: 25, criticalLevel: 5, price: 380.00 },
-      { name: 'Yaş Maya (Paket)', category: 'Un & Maya', unit: 'Kutu', stockAmount: 15, criticalLevel: 3, price: 115.00 },
-      { name: 'Tuz (İnce)', category: 'Hammaddeler', unit: 'kg', stockAmount: 50, criticalLevel: 10, price: 6.50 },
+      { name: 'Tip 650 Ekmeklik Un', category: 'Un & Maya', unit: 'Çuval', stockAmount: 25, criticalLevel: 5, price: 380.00, expiryOffset: 45 },
+      { name: 'Yaş Maya (Paket)', category: 'Un & Maya', unit: 'Kutu', stockAmount: 15, criticalLevel: 3, price: 115.00, expiryOffset: 5 }, // Expiry soon
+      { name: 'Tuz (İnce)', category: 'Hammaddeler', unit: 'kg', stockAmount: 50, criticalLevel: 10, price: 6.50, expiryOffset: 360 },
       { name: 'Ekmek Poşeti', category: 'Ambalaj & Paket', unit: 'Paket', stockAmount: 30, criticalLevel: 5, price: 45.00 },
-      { name: 'Susam', category: 'Hammaddeler', unit: 'kg', stockAmount: 20, criticalLevel: 5, price: 90.00 }
+      { name: 'Susam', category: 'Hammaddeler', unit: 'kg', stockAmount: 20, criticalLevel: 5, price: 90.00, expiryOffset: 90 }
     ],
     suppliers: [
       { name: 'Kemal Aksoy', company: 'Suda Un Sanayi A.Ş.', phone: '0532 111 22 33', email: 'kemal@sudaun.com', balance: 7600.00 }
@@ -89,7 +89,7 @@ const DEMO_PRESETS = {
       {
         name: 'Klasik Somun Ekmek (50 Adet)',
         ingredients: [
-          { name: 'Tip 650 Ekmeklik Un', amount: 0.5 }, // 0.5 çuval
+          { name: 'Tip 650 Ekmeklik Un', amount: 0.5 },
           { name: 'Yaş Maya (Paket)', amount: 0.1 },
           { name: 'Tuz (İnce)', amount: 0.5 },
           { name: 'Ekmek Poşeti', amount: 50 }
@@ -110,12 +110,12 @@ const DEMO_PRESETS = {
   },
   market: {
     products: [
-      { name: 'Spagetti Makarna 500g', category: 'Hammaddeler', unit: 'Adet', stockAmount: 150, criticalLevel: 30, price: 11.50 },
-      { name: 'Sızma Zeytinyağı 1L', category: 'Meyve & Sebze', unit: 'Adet', stockAmount: 40, criticalLevel: 10, price: 210.00 },
-      { name: 'Çikolatalı Gofret 35g', category: 'Hammaddeler', unit: 'Kutu', stockAmount: 120, criticalLevel: 20, price: 4.80 },
-      { name: 'Bulaşık Deterjanı 750ml', category: 'Süt & Şarküteri', unit: 'Adet', stockAmount: 60, criticalLevel: 15, price: 34.00 },
-      { name: 'Doğal Kaynak Suyu 1.5L', category: 'Kahve & İçecek', unit: 'Adet', stockAmount: 300, criticalLevel: 50, price: 5.50 },
-      { name: 'Florürlü Diş Macunu 75ml', category: 'Süt & Şarküteri', unit: 'Adet', stockAmount: 45, criticalLevel: 10, price: 48.00 }
+      { name: 'Spagetti Makarna 500g', category: 'Hammaddeler', unit: 'Adet', stockAmount: 150, criticalLevel: 30, price: 11.50, expiryOffset: 180 },
+      { name: 'Sızma Zeytinyağı 1L', category: 'Meyve & Sebze', unit: 'Adet', stockAmount: 40, criticalLevel: 10, price: 210.00, expiryOffset: 360 },
+      { name: 'Çikolatalı Gofret 35g', category: 'Hammaddeler', unit: 'Kutu', stockAmount: 120, criticalLevel: 20, price: 4.80, expiryOffset: -3 }, // Expired
+      { name: 'Bulaşık Deterjanı 750ml', category: 'Süt & Şarküteri', unit: 'Adet', stockAmount: 60, criticalLevel: 15, price: 34.00, expiryOffset: 240 },
+      { name: 'Doğal Kaynak Suyu 1.5L', category: 'Kahve & İçecek', unit: 'Adet', stockAmount: 300, criticalLevel: 50, price: 5.50, expiryOffset: 180 },
+      { name: 'Florürlü Diş Macunu 75ml', category: 'Süt & Şarküteri', unit: 'Adet', stockAmount: 45, criticalLevel: 10, price: 48.00, expiryOffset: 4 } // Expiry soon
     ],
     suppliers: [
       { name: 'Metin Tekin', company: 'Dynamics Toptan Market', phone: '0212 999 88 77', email: 'metin@dynamicstoptan.com', balance: 8400.00 }
@@ -132,26 +132,38 @@ export const loadDemoData = async (businessType) => {
   if (!preset) return false;
 
   try {
-    // 1. Clear existing products (in case any exist)
-    const existingProducts = await getAllProducts();
-    
-    // We already do a clean deleteDatabase on App.jsx reset,
-    // but doing simple check or direct insert is clean.
-    // Insert Suppliers (Cari)
+    // Insert Suppliers
     const supplierIds = {};
     for (const sup of preset.suppliers) {
       const id = await addSupplier(sup);
       supplierIds[sup.company] = id;
     }
 
-    // Insert Products
+    // Insert Products with calculated dynamic expiry dates
     const productIds = {};
     for (const prod of preset.products) {
-      const id = await addProduct(prod);
+      let finalExpiry = '';
+      if (prod.expiryOffset !== undefined) {
+        const d = new Date();
+        d.setDate(d.getDate() + prod.expiryOffset);
+        finalExpiry = d.toISOString().split('T')[0];
+      }
+      
+      const productToAdd = {
+        name: prod.name,
+        category: prod.category,
+        unit: prod.unit,
+        stockAmount: prod.stockAmount,
+        criticalLevel: prod.criticalLevel,
+        price: prod.price,
+        expiryDate: finalExpiry
+      };
+
+      const id = await addProduct(productToAdd);
       productIds[prod.name] = id;
     }
 
-    // Insert Recipes (matching ingredients name to auto-generated product ID)
+    // Insert Recipes
     for (const rec of preset.recipes) {
       const parsedIngredients = rec.ingredients
         .map(ing => {

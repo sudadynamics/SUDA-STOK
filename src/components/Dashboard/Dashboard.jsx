@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   Boxes, Layers, Settings, LogOut, Download, Upload, Trash2, 
   User, Briefcase, DollarSign, Key, Bell, RefreshCw, Sparkles, Bot, 
-  Truck, Printer, Receipt, ShoppingCart, AlertTriangle 
+  Truck, Printer, Receipt, ShoppingCart, AlertTriangle, TrendingUp 
 } from 'lucide-react';
 import StockList from './StockList';
 import RecipeManager from './RecipeManager';
 import StockCharts from './StockCharts';
 import SupplierManager from './SupplierManager';
 import PosTerminal from './PosTerminal';
+import FinancialReport from './FinancialReport';
 import SudaBot from './SudaBot';
 import { 
   getAllProducts, addProduct, updateProduct, deleteProduct, 
@@ -51,13 +52,40 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
       const logList = await getAllLogs();
       setLogs(logList);
 
-      // Check for notifications (critical levels)
+      // Check for notifications (critical levels & Expiry dates)
       const criticals = prodList.filter(p => p.stockAmount <= p.criticalLevel);
       const notifs = criticals.map(p => ({
-        id: p.id,
+        id: `critical-${p.id}`,
         message: `${p.name} stoğu kritik seviyede! (${p.stockAmount} ${p.unit} kaldı)`,
         type: p.stockAmount === 0 ? 'empty' : 'warning'
       }));
+
+      // Check Expiration Dates
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      prodList.forEach(p => {
+        if (p.expiryDate) {
+          const exp = new Date(p.expiryDate);
+          exp.setHours(0,0,0,0);
+          const diffTime = exp - today;
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays < 0) {
+            notifs.push({
+              id: `expired-${p.id}`,
+              message: `⚠️ ${p.name} Son Kullanma Tarihi GEÇTİ! (${Math.abs(diffDays)} gün önce)`,
+              type: 'empty'
+            });
+          } else if (diffDays <= 7) {
+            notifs.push({
+              id: `expiring-${p.id}`,
+              message: `⏰ ${p.name} Son Kullanma Tarihi yaklaşıyor! (${diffDays} gün kaldı)`,
+              type: 'warning'
+            });
+          }
+        }
+      });
+
       setNotifications(notifs);
     } catch (e) {
       console.error('Failed to load data from IndexedDB:', e);
@@ -411,6 +439,15 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
             <ShoppingCart size={20} />
             <span>Hızlı Satış (POS)</span>
           </button>
+
+          <button 
+            className={`nav-item ${activeTab === 'finance' ? 'active' : ''}`}
+            onClick={() => setActiveTab('finance')}
+            id="tab-btn-finance"
+          >
+            <TrendingUp size={20} />
+            <span>Finansal Rapor</span>
+          </button>
           
           {/* Render recipes tab only for recipes-based business types */}
           {['pastane', 'cafe', 'firin'].includes(businessInfo.businessType) && (
@@ -555,6 +592,14 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
                 await addLog(type, msg, details);
                 await loadData();
               }}
+            />
+          )}
+
+          {activeTab === 'finance' && (
+            <FinancialReport
+              logs={logs}
+              products={products}
+              currency={businessInfo.currency}
             />
           )}
 

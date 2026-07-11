@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Minus, Edit, Trash2, X, Filter, AlertTriangle, MessageCircle } from 'lucide-react';
+import { Search, Plus, Minus, Edit, Trash2, X, Filter, AlertTriangle, MessageCircle, Printer, Calendar } from 'lucide-react';
 import './StockList.css';
 
 const UNITS = ['Adet', 'g', 'kg', 'L', 'ml', 'Paket', 'Çuval', 'Kutu'];
@@ -36,6 +36,7 @@ export default function StockList({
   const [stockAmount, setStockAmount] = useState('');
   const [criticalLevel, setCriticalLevel] = useState('');
   const [price, setPrice] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
 
   const openAddDrawer = () => {
     setEditingProduct(null);
@@ -46,6 +47,7 @@ export default function StockList({
     setStockAmount('');
     setCriticalLevel('');
     setPrice('');
+    setExpiryDate('');
     setIsDrawerOpen(true);
   };
 
@@ -65,6 +67,7 @@ export default function StockList({
     setStockAmount(product.stockAmount);
     setCriticalLevel(product.criticalLevel);
     setPrice(product.price);
+    setExpiryDate(product.expiryDate || '');
     setIsDrawerOpen(true);
   };
 
@@ -85,7 +88,8 @@ export default function StockList({
       unit,
       stockAmount: parseFloat(stockAmount) || 0,
       criticalLevel: parseFloat(criticalLevel) || 0,
-      price: parseFloat(price) || 0
+      price: parseFloat(price) || 0,
+      expiryDate
     };
 
     if (editingProduct) {
@@ -121,6 +125,29 @@ export default function StockList({
     if (cat.includes('meyve') || cat.includes('sebze') || cat.includes('çilek')) return 'cat-meyve';
     if (cat.includes('ambalaj') || cat.includes('paket') || cat.includes('kutu')) return 'cat-ambalaj';
     return 'cat-default';
+  };
+
+  // Expiration Days Calculator and Badge Renderer
+  const getExpiryBadge = (dateStr) => {
+    if (!dateStr) return <span className="skt-none" style={{ color: '#94A3B8' }}>Tanımsız</span>;
+    
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const exp = new Date(dateStr);
+    exp.setHours(0,0,0,0);
+    
+    const diffTime = exp - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return <span className="badge badge-danger skt-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>⚠️ Geçti ({Math.abs(diffDays)} gün)</span>;
+    } else if (diffDays === 0) {
+      return <span className="badge badge-danger skt-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>⚠️ BUGÜN!</span>;
+    } else if (diffDays <= 7) {
+      return <span className="badge badge-warning skt-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>⚠️ Yaklaştı ({diffDays} gün)</span>;
+    } else {
+      return <span className="badge badge-success skt-badge">Taze ({diffDays} gün)</span>;
+    }
   };
 
   // Get distinct categories present in active products
@@ -173,6 +200,108 @@ export default function StockList({
     setIsWasteModalOpen(true);
   };
 
+  // Print Inventory Report
+  const handlePrintInventory = () => {
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    const totalInventoryValue = filteredProducts.reduce((acc, p) => acc + (p.stockAmount * p.price), 0);
+    const criticalCount = filteredProducts.filter(p => p.stockAmount <= p.criticalLevel).length;
+
+    const tableRows = filteredProducts.map((p, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td><strong>${p.name}</strong></td>
+        <td>${p.category}</td>
+        <td>${p.price.toFixed(2)} ${currency}</td>
+        <td>${p.stockAmount} ${p.unit}</td>
+        <td>${p.criticalLevel} ${p.unit}</td>
+        <td>${p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : '-'}</td>
+      </tr>
+    `).join('');
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>SUDA DYNAMICS - Envanter Raporu</title>
+          <style>
+            body { font-family: 'Outfit', sans-serif; color: #0B1B3D; padding: 30px; line-height: 1.4; }
+            .header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0B1B3D; padding-bottom: 20px; margin-bottom: 30px; }
+            .logo-title h1 { margin: 0; font-size: 24px; font-weight: 800; color: #0B1B3D; }
+            .logo-title p { margin: 4px 0 0 0; font-size: 12px; color: #64748B; letter-spacing: 2px; }
+            .meta-box { font-size: 13px; text-align: right; }
+            .kpis-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+            .kpi-card { background-color: #F8FAFB; border: 1px solid #E5E9F0; border-radius: 8px; padding: 15px; text-align: center; }
+            .kpi-card span { font-size: 11px; color: #64748B; font-weight: 600; text-transform: uppercase; }
+            .kpi-card strong { display: block; font-size: 18px; margin-top: 5px; color: #0B1B3D; }
+            .inv-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 12px; }
+            .inv-table th { padding: 12px; background-color: #F1F5F9; border-bottom: 2px solid #E2E8F0; text-align: left; }
+            .inv-table td { padding: 12px; border-bottom: 1px solid #E5E9F0; }
+            .inv-table tr:nth-child(even) { background-color: #FAFCFE; }
+            .footer { text-align: center; font-size: 10px; color: #94A3B8; border-top: 1px dashed #E5E9F0; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header-row">
+            <div class="logo-title">
+              <h1>SUDA DYNAMICS</h1>
+              <p>ENVANTER SAYIM RAPORU</p>
+            </div>
+            <div class="meta-box">
+              <strong>İşletme:</strong> ${businessInfo.businessName}<br>
+              <strong>Yetkili:</strong> ${businessInfo.ownerName}<br>
+              <strong>Tarih:</strong> ${new Date().toLocaleDateString()}<br>
+            </div>
+          </div>
+
+          <div class="kpis-row">
+            <div class="kpi-card">
+              <span>Toplam Ürün Kalemi</span>
+              <strong>${filteredProducts.length} Çeşit</strong>
+            </div>
+            <div class="kpi-card">
+              <span>Kritik Limit Altında</span>
+              <strong>${criticalCount} Ürün</strong>
+            </div>
+            <div class="kpi-card">
+              <span>Toplam Envanter Değeri</span>
+              <strong>${totalInventoryValue.toFixed(2)} ${currency}</strong>
+            </div>
+          </div>
+
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Ürün Adı</th>
+                <th>Kategori</th>
+                <th>Birim Fiyat</th>
+                <th>Mevcut Stok</th>
+                <th>Kritik Limit</th>
+                <th>Son Tüketim (SKT)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            SUDA Dynamics Envanter ve Sayım Kontrol Modülü tarafından otomatik üretilmiştir.
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   return (
     <div className="stock-list-container animate-fade-in" id="stock-list-section">
       {/* Search and Filters bar */}
@@ -202,6 +331,10 @@ export default function StockList({
               ))}
             </select>
           </div>
+
+          <button className="btn-print-inv-trigger" onClick={handlePrintInventory} title="Envanter PDF/Döküm Raporu Al" id="btn-print-inventory">
+            <Printer size={16} /> Rapor Al
+          </button>
 
           <button className="btn-report-waste-trigger" onClick={() => openWasteModal()} id="btn-open-waste-modal">
             <AlertTriangle size={16} /> Fire Bildir
@@ -233,6 +366,7 @@ export default function StockList({
                 <th>Fiyat</th>
                 <th>Mevcut Stok</th>
                 <th>Kritik Limit</th>
+                <th>Son Tüketim (SKT)</th>
                 <th className="text-center">Hızlı Stok Ayarı</th>
                 <th className="text-right">İşlemler</th>
               </tr>
@@ -281,6 +415,9 @@ export default function StockList({
                           </button>
                         )}
                       </div>
+                    </td>
+                    <td data-label="Son Tüketim (SKT)">
+                      {getExpiryBadge(product.expiryDate)}
                     </td>
                     
                     {/* Quick Adjustments */}
@@ -427,16 +564,12 @@ export default function StockList({
 
               <div className="form-row-2">
                 <div className="input-group">
-                  <label htmlFor="drawer-stock">Başlangıç Stoğu</label>
+                  <label htmlFor="drawer-expiry">Son Kullanma Tarihi (SKT)</label>
                   <input
-                    type="number"
-                    step="any"
-                    min="0"
-                    id="drawer-stock"
-                    value={stockAmount}
-                    onChange={(e) => setStockAmount(e.target.value)}
-                    placeholder="0"
-                    required
+                    type="date"
+                    id="drawer-expiry"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
                   />
                 </div>
 
@@ -453,6 +586,20 @@ export default function StockList({
                     required
                   />
                 </div>
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="drawer-stock">Mevcut Stok Miktarı</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  id="drawer-stock"
+                  value={stockAmount}
+                  onChange={(e) => setStockAmount(e.target.value)}
+                  placeholder="0"
+                  required
+                />
               </div>
 
               <div className="drawer-footer">

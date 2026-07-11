@@ -542,4 +542,35 @@ mark.search-highlight {
   fill: #FFFFFF !important;
 }
 
+/* Envanter Rapor Yazdır Trigger */
+.btn-print-inv-trigger {
+  padding: 12px 20px;
+  background-color: var(--color-purple-light);
+  color: var(--color-purple);
+  border: 1.5px solid rgba(124, 58, 237, 0.2);
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition-bounce);
+}
+
+.btn-print-inv-trigger:hover {
+  background-color: var(--color-purple);
+  color: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+}
+
+/* Expiry Date Badges */
+.badge.skt-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 8px;
+}
+
+
 
