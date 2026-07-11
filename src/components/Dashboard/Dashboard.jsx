@@ -11,6 +11,7 @@ import SupplierManager from './SupplierManager';
 import PosTerminal from './PosTerminal';
 import FinancialReport from './FinancialReport';
 import SudaBot from './SudaBot';
+import GuidedTour from './GuidedTour';
 import { 
   getAllProducts, addProduct, updateProduct, deleteProduct, 
   getAllRecipes, addRecipe, deleteRecipe, 
@@ -29,6 +30,7 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
   const [notifications, setNotifications] = useState([]);
   const [aiReport, setAiReport] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
 
   // Settings form states
   const [editName, setEditName] = useState(businessInfo.businessName);
@@ -506,6 +508,16 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
           </div>
 
           <div className="topbar-actions">
+            {/* Guided Tour Launcher */}
+            <button 
+              className="btn-backup-export" 
+              onClick={() => setIsTourOpen(true)} 
+              id="btn-topbar-tour"
+              style={{ marginRight: 8, backgroundColor: 'var(--color-purple-light)', color: 'var(--color-purple)', border: '1px solid rgba(124,58,237,0.15)' }}
+            >
+              ✨ Rehberli Tur
+            </button>
+
             <div className="notification-bell-wrapper" id="bell-dropdown-trigger">
               <button className="btn-bell" aria-label="Bildirimler">
                 <Bell size={20} />
@@ -810,6 +822,15 @@ export default function Dashboard({ businessInfo, onReset, onUpdateSettings }) {
         logs={logs}
         businessInfo={businessInfo}
         onOpenSettings={() => setActiveTab('settings')}
+      />
+
+      {/* Interactive Guided Tour Walkthrough */}
+      <GuidedTour
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        businessType={businessInfo.businessType}
       />
     </div>
   );

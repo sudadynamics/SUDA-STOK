@@ -1,0 +1,213 @@
+.tour-overlay-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+.tour-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(11, 27, 61, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 10000;
+}
+
+/* Spotlight Ring utilizing massive box-shadow to punch a hole */
+.tour-spotlight-ring {
+  position: absolute;
+  z-index: 10001;
+  border-radius: var(--radius-md);
+  border: 3px solid var(--color-purple);
+  box-shadow: 0 0 0 9999px rgba(11, 27, 61, 0.55), 0 0 15px 4px var(--color-purple);
+  pointer-events: none;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Tour Dialog Box */
+.tour-guide-card {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  width: 360px;
+  background-color: #FFFFFF;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 10002;
+  padding: 24px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  border: 1px solid var(--color-border);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 500px) {
+  .tour-guide-card {
+    width: calc(100vw - 40px);
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+  }
+}
+
+.tour-guide-card.centered {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  bottom: auto;
+  right: auto;
+  width: 420px;
+}
+
+@media (max-width: 500px) {
+  .tour-guide-card.centered {
+    width: calc(100vw - 40px);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Robot Avatar Style inside Tour */
+.tour-robot-avatar {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  animation: float 2s ease-in-out infinite;
+}
+
+.tour-robot-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.eye-blink {
+  animation: eye-blink 4s infinite;
+  transform-origin: center;
+}
+
+@keyframes eye-blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+
+/* Tour content details */
+.tour-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tour-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tour-card-header h4 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--color-navy);
+  margin: 0;
+}
+
+.btn-close-tour {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-round);
+  transition: var(--transition-fast);
+}
+
+.btn-close-tour:hover {
+  color: var(--color-navy);
+  background-color: var(--color-bg);
+}
+
+.tour-message {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.tour-dots-indicator {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #E2E8F0;
+  transition: var(--transition-fast);
+}
+
+.tour-dot.active {
+  background-color: var(--color-purple);
+  width: 18px;
+  border-radius: 3px;
+}
+
+.tour-footer-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-tour-back {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--transition-fast);
+}
+
+.btn-tour-back:hover:not(:disabled) {
+  color: var(--color-navy);
+  border-color: var(--color-text-muted);
+}
+
+.btn-tour-back:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-tour-next {
+  background-color: var(--color-purple);
+  color: #FFFFFF;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--transition-bounce);
+}
+
+.btn-tour-next:hover {
+  background-color: var(--color-purple-hover);
+  transform: translateY(-1px);
+}
